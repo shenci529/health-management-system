@@ -18,5 +18,10 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  },
+  base: '/health-management-system/',
   plugins: [createVuePlugin()]
 })
