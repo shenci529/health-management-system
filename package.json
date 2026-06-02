@@ -6,18 +6,22 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "cd server && node server.js",
-    "server:prod": "cd server && node server-prod.js",
-    "db:init": "cd server && node database/init.js",
-    "start": "npm run build && cd server && npm install && node database/init.js && node server-prod.js",
-    "init": "npm install && cd server && npm install && npm run db:init"
+    "server": "node server/server.js",
+    "server:prod": "node server/server-prod.js",
+    "db:init": "node server/database/init.js",
+    "start": "npm run build && node server/database/init.js && node server/server-prod.js",
+    "init": "npm install && node server/database/init.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
     "echarts": "^5.4.3",
     "element-ui": "^2.15.14",
     "vue": "^2.7.14",
-    "vue-router": "^3.6.5"
+    "vue-router": "^3.6.5",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "sqlite3": "^5.1.6",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "playwright": "^1.60.0",
