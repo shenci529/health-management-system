@@ -1,68 +1,75 @@
-const Database = require('better-sqlite3');
+const initSqlJs = require('sql.js');
 const path = require('path');
+const fs = require('fs');
 
 const dbPath = path.join(__dirname, 'health_management.db');
 
-let db;
+let dbInstance = null;
 
-try {
-  db = new Database(dbPath, { verbose: console.log });
-  console.log('✅ 数据库连接成功');
-} catch (err) {
-  console.error('❌ 数据库连接失败:', err.message);
-  throw err;
-}
-
-class DB {
-  static all(sql, params = []) {
-    try {
-      const stmt = db.prepare(sql);
-      return stmt.all(params);
-    } catch (err) {
-      console.error('❌ 查询错误:', err.message);
-      throw err;
+class Database {
+  static async init() {
+    if (dbInstance) return;
+    
+    const SQL = await initSqlJs();
+    
+    if (fs.existsSync(dbPath)) {
+      const fileBuffer = fs.readFileSync(dbPath);
+      dbInstance = new SQL.Database(fileBuffer);
+      console.log('✅ 数据库连接成功（从文件加载）');
+    } else {
+      dbInstance = new SQL.Database();
+      console.log('✅ 数据库连接成功（新数据库）');
     }
+  }
+
+  static save() {
+    if (!dbInstance) return;
+    const data = dbInstance.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(dbPath, buffer);
+  }
+
+  static all(sql, params = []) {
+    if (!dbInstance) throw new Error('数据库未初始化');
+    const stmt = dbInstance.prepare(sql);
+    const results = [];
+    while (stmt.step()) {
+      const result = stmt.getAsObject();
+      results.push(result);
+    }
+    stmt.free();
+    return results;
   }
 
   static get(sql, params = []) {
-    try {
-      const stmt = db.prepare(sql);
-      return stmt.get(params);
-    } catch (err) {
-      console.error('❌ 查询错误:', err.message);
-      throw err;
+    if (!dbInstance) throw new Error('数据库未初始化');
+    const stmt = dbInstance.prepare(sql);
+    let result = null;
+    if (stmt.step()) {
+      result = stmt.getAsObject();
     }
+    stmt.free();
+    return result;
   }
 
   static run(sql, params = []) {
-    try {
-      const stmt = db.prepare(sql);
-      const result = stmt.run(params);
-      return {
-        lastID: result.lastInsertRowid,
-        changes: result.changes
-      };
-    } catch (err) {
-      console.error('❌ 执行错误:', err.message);
-      throw err;
-    }
+    if (!dbInstance) throw new Error('数据库未初始化');
+    dbInstance.run(sql, params);
+    this.save();
+    return {
+      lastID: dbInstance.exec('SELECT last_insert_rowid() as id')[0].values[0][0],
+      changes: 1
+    };
   }
 
   static exec(sql) {
-    try {
-      db.exec(sql);
-    } catch (err) {
-      console.error('❌ 执行错误:', err.message);
-      throw err;
-    }
-  }
-
-  static prepare(sql) {
-    return db.prepare(sql);
+    if (!dbInstance) throw new Error('数据库未初始化');
+    dbInstance.exec(sql);
+    this.save();
   }
 }
 
 module.exports = {
-  db,
-  Database: DB
+  db: null,
+  Database
 };
