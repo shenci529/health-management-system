@@ -1,0 +1,142 @@
+<view class="container">
+  <!-- 健康评分 -->
+  <view class="section">
+    <view class="score-card">
+      <text class="section-title">健康评分</text>
+      <view class="score-circle">
+        <view class="score-ring">
+          <view class="score-inner">
+            <text class="score-value">{{healthScore}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="score-status {{scoreStatusClass}}">{{scoreStatusText}}</view>
+    </view>
+  </view>
+
+  <!-- 身体信息 -->
+  <view class="section" wx:if="{{latestRecord}}">
+    <view class="card">
+      <text class="card-title">身体信息</text>
+      <view class="info-grid">
+        <view class="info-item">
+          <text class="info-label">体重</text>
+          <text class="info-value">{{latestRecord.weight}} kg</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">身高</text>
+          <text class="info-value">{{latestRecord.height}} cm</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">BMI</text>
+          <text class="info-value">{{bmi}}</text>
+          <text class="info-status {{bmiStatusClass}}">{{bmiStatus}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 基础能量消耗 -->
+  <view class="section" wx:if="{{latestRecord}}">
+    <view class="card">
+      <text class="card-title">基础能量消耗状况</text>
+      <view class="energy-grid">
+        <view class="energy-item">
+          <view class="energy-circle">
+            <text class="energy-value">{{bodyAgePercentage}}%</text>
+          </view>
+          <text class="energy-label">到达身高百分比</text>
+        </view>
+        <view class="energy-item">
+          <view class="energy-circle blue">
+            <text class="energy-value">{{bmr}}</text>
+          </view>
+          <text class="energy-label">基础代谢 (kcal)</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 肥胖分析 -->
+  <view class="section" wx:if="{{obesityAnalysis}}">
+    <view class="card">
+      <text class="card-title">肥胖分析</text>
+      <view class="analysis-content">
+        <text class="analysis-status">您的体重属于：{{obesityAnalysis.status}}</text>
+        <text class="analysis-advice">{{obesityAnalysis.advice}}</text>
+        <view wx:if="{{obesityAnalysis.risk.length > 0}}" class="risk-list">
+          <text class="risk-title">可能的健康风险：</text>
+          <view wx:for="{{obesityAnalysis.risk}}" wx:key="index" class="risk-item">
+            <text class="risk-icon">⚠️</text>
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 视力分析 -->
+  <view class="section" wx:if="{{visionAnalysis}}">
+    <view class="card">
+      <text class="card-title">视力分析</text>
+      <view class="vision-content">
+        <view class="vision-icon">
+          <text>👁️</text>
+        </view>
+        <view class="vision-info">
+          <text class="vision-value">{{latestRecord.vision}}</text>
+          <text class="vision-level">视力等级：{{visionAnalysis.level}}</text>
+        </view>
+      </view>
+      <text class="vision-advice">{{visionAnalysis.advice}}</text>
+    </view>
+  </view>
+
+  <!-- 健康指标 -->
+  <view class="section" wx:if="{{latestRecord}}">
+    <view class="card">
+      <text class="card-title">健康指标</text>
+      <view class="indicator-list">
+        <view class="indicator-item">
+          <text class="indicator-label">心率</text>
+          <view class="indicator-value">
+            <text>{{latestRecord.heartRate || '--'}} 次/分</text>
+            <text wx:if="{{latestRecord.heartRate >= 60 && latestRecord.heartRate <= 100}}" class="check-icon">✓</text>
+          </view>
+        </view>
+        <view class="indicator-item">
+          <text class="indicator-label">视力</text>
+          <view class="indicator-value">
+            <text>{{latestRecord.vision || '--'}}</text>
+            <text wx:if="{{latestRecord.vision >= 1.0}}" class="check-icon">✓</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 健康建议 -->
+  <view class="section">
+    <view class="card">
+      <text class="card-title">健康建议</text>
+      <view class="advice-list">
+        <view class="advice-item">
+          <view class="advice-number">1</view>
+          <text>保持规律作息，每天保证充足的睡眠</text>
+        </view>
+        <view class="advice-item">
+          <view class="advice-number">2</view>
+          <text>均衡饮食，多吃蔬菜水果，少吃油腻食物</text>
+        </view>
+        <view class="advice-item">
+          <view class="advice-number">3</view>
+          <text>每天进行至少1小时的户外运动</text>
+        </view>
+        <view class="advice-item">
+          <view class="advice-number">4</view>
+          <text>定期检查视力，注意用眼卫生</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

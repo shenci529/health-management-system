@@ -1,0 +1,14 @@
+<view class="container">
+  <view class="section">
+    <text class="section-title">健康知识</text>
+    <view class="knowledge-list">
+      <view wx:for="{{knowledgeList}}" wx:key="id" class="knowledge-item">
+        <view class="knowledge-icon">{{item.icon}}</view>
+        <view class="knowledge-content">
+          <text class="knowledge-title">{{item.title}}</text>
+          <text class="knowledge-desc">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

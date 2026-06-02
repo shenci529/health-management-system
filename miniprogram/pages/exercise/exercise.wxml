@@ -1,0 +1,24 @@
+<view class="container">
+  <view class="section" wx:for="{{categories}}" wx:key="key" wx:for-item="category">
+    <view class="category-header">
+      <text class="category-icon">{{category.icon}}</text>
+      <text class="category-name">{{category.name}}</text>
+    </view>
+    
+    <view class="exercise-list">
+      <view wx:for="{{category.exercises}}" wx:key="id" class="exercise-card">
+        <view class="exercise-header">
+          <text class="exercise-name">{{item.name}}</text>
+          <text class="exercise-duration">{{item.duration}}分钟</text>
+        </view>
+        <text class="exercise-desc">{{item.description}}</text>
+        <view class="exercise-benefits">
+          <text wx:for="{{item.benefits}}" wx:key="index" wx:for-item="benefit" class="benefit-tag">{{benefit}}</text>
+        </view>
+        <view class="exercise-frequency">
+          <text>建议频率：{{item.frequency}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

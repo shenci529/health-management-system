@@ -1,0 +1,48 @@
+<view class="login-container">
+  <view class="login-card">
+    <view class="header">
+      <text class="title">健康管理系统</text>
+      <text class="subtitle">请登录您的账号</text>
+    </view>
+
+    <view wx:if="{{error}}" class="error-message">{{error}}</view>
+
+    <form bindsubmit="handleSubmit">
+      <view class="input-group">
+        <text class="label">用户名</text>
+        <view class="input-wrapper">
+          <text class="icon">👤</text>
+          <input 
+            class="input" 
+            name="username" 
+            placeholder="请输入用户名" 
+            value="{{username}}"
+            bindinput="onUsernameInput"
+          />
+        </view>
+      </view>
+
+      <view class="input-group">
+        <text class="label">密码</text>
+        <view class="input-wrapper">
+          <text class="icon">🔒</text>
+          <input 
+            class="input" 
+            name="password" 
+            type="password" 
+            placeholder="请输入密码" 
+            value="{{password}}"
+            bindinput="onPasswordInput"
+          />
+        </view>
+      </view>
+
+      <button form-type="submit" class="login-btn">登录</button>
+    </form>
+
+    <view class="hint">
+      <text>用户名: admin</text>
+      <text>密码: admin123</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,45 @@
+<view class="container">
+  <view class="section">
+    <text class="section-title">添加健康记录</text>
+    
+    <view class="form-card">
+      <view class="form-item">
+        <text class="label">身高 (cm)</text>
+        <input class="input" type="number" placeholder="请输入身高" bindinput="onHeightInput" value="{{formData.height}}" />
+      </view>
+
+      <view class="form-item">
+        <text class="label">体重 (kg)</text>
+        <input class="input" type="number" placeholder="请输入体重" bindinput="onWeightInput" value="{{formData.weight}}" />
+      </view>
+
+      <view class="form-item">
+        <text class="label">心率 (次/分)</text>
+        <input class="input" type="number" placeholder="请输入心率" bindinput="onHeartRateInput" value="{{formData.heartRate}}" />
+      </view>
+
+      <view class="form-item">
+        <text class="label">视力</text>
+        <input class="input" type="digit" placeholder="请输入视力" bindinput="onVisionInput" value="{{formData.vision}}" />
+      </view>
+
+      <button class="submit-btn" bindtap="onSubmit">保存记录</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">历史记录</text>
+    <view class="record-list">
+      <view wx:for="{{records}}" wx:key="id" class="record-item">
+        <view class="record-main">
+          <text class="record-value">{{item.height}}cm / {{item.weight}}kg</text>
+          <text class="record-date">{{item.date}}</text>
+        </view>
+        <view class="record-detail">
+          <text>心率: {{item.heartRate || '--'}} 次/分</text>
+          <text>视力: {{item.vision || '--'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
