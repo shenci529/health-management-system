@@ -2,7 +2,6 @@
   "name": "health-management-system",
   "version": "1.0.0",
   "description": "Health Management System",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,8 +9,7 @@
     "server": "cd server && node server.js",
     "server:prod": "cd server && node server-prod.js",
     "db:init": "cd server && node database/init.js",
-    "start": "set NODE_ENV=production&& cd server && node server-prod.js",
-    "start:prod": "npm run build && npm run server:prod",
+    "start": "cd server && node database/init.js && node server-prod.js",
     "init": "npm install && cd server && npm install && npm run db:init"
   },
   "dependencies": {

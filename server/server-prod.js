@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const fs = require('fs');
 
 // 初始化Express应用
 const app = express();
@@ -53,12 +54,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // ==============================
-// 前端静态文件服务（生产环境）
+// 前端静态文件服务
 // ==============================
 const distPath = path.join(__dirname, '../dist');
 console.log(`📦 检查前端构建目录: ${distPath}`);
 
-if (process.env.NODE_ENV === 'production' && require('fs').existsSync(distPath)) {
+if (fs.existsSync(distPath)) {
   console.log('🌐 启用前端静态文件服务');
   
   // 托管前端构建文件
@@ -73,7 +74,8 @@ if (process.env.NODE_ENV === 'production' && require('fs').existsSync(distPath))
   
   console.log('✅ 前端静态文件服务已启用');
 } else {
-  // 如果不是生产环境或前端未构建，返回API文档
+  console.log('⚠️ 前端构建目录不存在，仅提供API服务');
+  // 如果没有前端文件，返回API文档
   app.get('/', (req, res) => {
     res.json({
       name: 'Health Management System',
@@ -104,11 +106,11 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  🌐 健康检查: http://localhost:${PORT}/api/health`);
   console.log(`  📦 数据库: SQLite - health_management.db`);
   
-  const dbExists = require('fs').existsSync(path.join(__dirname, 'database', 'health_management.db'));
+  const dbExists = fs.existsSync(path.join(__dirname, 'database', 'health_management.db'));
   if (dbExists) {
     console.log(`  ✅ 数据库已就绪`);
   } else {
-    console.log(`  ⚠️ 数据库不存在，请运行: npm run db:init`);
+    console.log(`  ⚠️ 数据库不存在，将自动初始化`);
   }
   
   console.log('='.repeat(60));
