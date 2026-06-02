@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { Database } = require('./database/db');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -43,7 +42,7 @@ app.get('/api/health', (req, res) => {
 });
 
 const distPath = path.join(__dirname, '../dist');
-console.log(`📦 检查前端构建目录:', distPath);
+console.log('📦 检查前端构建目录:', distPath);
 
 const fs = require('fs');
 if (fs.existsSync(distPath)) {
@@ -76,16 +75,56 @@ if (fs.existsSync(distPath)) {
   });
 }
 
+async function initDatabase() {
+  console.log('🗄️ 初始化数据库...');
+  const initSqlJs = require('sql.js');
+  const dbPath = path.join(__dirname, 'database/health_management.db');
+  
+  try {
+    const SQL = await initSqlJs();
+    let db;
+    
+    if (fs.existsSync(dbPath)) {
+      console.log('📁 数据库文件已存在，加载中...');
+      const fileBuffer = fs.readFileSync(dbPath);
+      db = new SQL.Database(fileBuffer);
+    } else {
+      console.log('📝 数据库文件不存在，创建新数据库...');
+      db = new SQL.Database();
+      
+      const schemaPath = path.join(__dirname, 'database/schema.sql');
+      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+      console.log('🔧 执行数据库初始化脚本...');
+      db.exec(schemaSql);
+      
+      const data = db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(dbPath, buffer);
+      console.log('💾 数据库已保存');
+    }
+    
+    db.close();
+    console.log('✅ 数据库初始化完成');
+  } catch (err) {
+    console.error('❌ 数据库初始化失败:', err);
+    throw err;
+  }
+}
+
 async function startServer() {
   try {
+    await initDatabase();
+    
+    const { Database } = require('./database/db');
     await Database.init();
+    
     app.listen(PORT, '0.0.0.0', () => {
       console.log('='.repeat(60));
       console.log('  🎉 健康管理系统 - 完整部署版本');
       console.log('='.repeat(60));
-      console.log(`  🚀 服务已启动: http://localhost:' + PORT);
-      console.log(`  🌐 健康检查: http://localhost:' + PORT + '/api/health');
-      console.log(`  📦 数据库: SQLite - health_management.db');
+      console.log('  🚀 服务已启动: http://localhost:' + PORT);
+      console.log('  🌐 健康检查: http://localhost:' + PORT + '/api/health');
+      console.log('  📦 数据库: SQLite - health_management.db');
       console.log('  ✅ 数据库已就绪');
       console.log('='.repeat(60));
       console.log('');
