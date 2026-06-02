@@ -9,7 +9,7 @@
     "server": "cd server && node server.js",
     "server:prod": "cd server && node server-prod.js",
     "db:init": "cd server && node database/init.js",
-    "start": "cd server && node database/init.js && node server-prod.js",
+    "start": "npm run build && cd server && node database/init.js && node server-prod.js",
     "init": "npm install && cd server && npm install && npm run db:init"
   },
   "dependencies": {
