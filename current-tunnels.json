@@ -1,0 +1,10 @@
+{
+  "后端API": {
+    "url": "https://tired-phones-think.loca.lt",
+    "port": 3002
+  },
+  "前端页面": {
+    "url": "https://itchy-streets-poke.loca.lt",
+    "port": 3003
+  }
+}

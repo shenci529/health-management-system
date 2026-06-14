@@ -90,13 +90,15 @@ export default {
     });
   },
   methods: {
-    initCharts() {
-      this.initHeartRateChart();
-      this.initVisionChart();
-      this.initBloodChart();
+    async initCharts() {
+      await Promise.all([
+        this.initHeartRateChart(),
+        this.initVisionChart(),
+        this.initBloodChart()
+      ]);
     },
-    initHeartRateChart() {
-      const chart = this.$echarts.init(this.$refs.heartRateChart);
+    async initHeartRateChart() {
+      const chart = await this.$echarts.init(this.$refs.heartRateChart);
       const option = {
         tooltip: {
           trigger: 'axis'
@@ -127,8 +129,8 @@ export default {
       this.heartRateChart = chart;
       window.addEventListener('resize', () => chart.resize());
     },
-    initVisionChart() {
-      const chart = this.$echarts.init(this.$refs.visionChart);
+    async initVisionChart() {
+      const chart = await this.$echarts.init(this.$refs.visionChart);
       const option = {
         tooltip: {
           trigger: 'axis'
@@ -155,8 +157,8 @@ export default {
       this.visionChart = chart;
       window.addEventListener('resize', () => chart.resize());
     },
-    initBloodChart() {
-      const chart = this.$echarts.init(this.$refs.bloodChart);
+    async initBloodChart() {
+      const chart = await this.$echarts.init(this.$refs.bloodChart);
       const option = {
         tooltip: {
           trigger: 'axis'
