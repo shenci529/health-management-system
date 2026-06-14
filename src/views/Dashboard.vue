@@ -265,4 +265,92 @@ export default {
   width: 100%;
   height: 250px;
 }
+
+/* ============ 移动端适配 ============ */
+@media screen and (max-width: 992px) {
+  .stat-card {
+    margin-bottom: 12px;
+  }
+
+  .chart-container {
+    height: 240px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .dashboard {
+    padding: 4px;
+  }
+
+  .stat-cards {
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    padding: 14px 12px;
+    gap: 10px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+  }
+
+  .icon-container {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .charts-section {
+    margin-top: 12px;
+  }
+
+  .chart-card {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .dashboard {
+    padding: 2px;
+  }
+
+  .stat-card {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .icon-container {
+    width: 40px;
+    height: 40px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+
+  .chart-container {
+    height: 200px;
+  }
+}
 </style>

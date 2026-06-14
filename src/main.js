@@ -15,6 +15,7 @@ import ElementUI from 'element-ui';
 
 // 引入ElementUI的样式文件（让UI组件有美观的外观）
 import 'element-ui/lib/theme-chalk/index.css';
+import './index.css';
 
 // 引入ECharts图表库（用于绘制数据可视化图表，比如柱状图、折线图等）
 import * as echarts from 'echarts';

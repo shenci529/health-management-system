@@ -834,4 +834,178 @@ export default {
   margin-right: 5px;
   color: #667eea;
 }
+
+/* ============ 移动端样式 ============ */
+@media screen and (max-width: 768px) {
+  .login-container {
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    padding: 30px 24px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .login-header {
+    margin-bottom: 28px;
+  }
+
+  .login-header .logo {
+    font-size: 44px;
+  }
+
+  .login-header h1 {
+    font-size: 22px;
+  }
+
+  .login-header .subtitle {
+    font-size: 13px;
+  }
+
+  .role-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .role-card {
+    padding: 12px 6px;
+    flex-direction: column;
+  }
+
+  .role-icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .role-name {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .login-form /deep/ .el-input__inner {
+    height: 44px;
+    border-radius: 6px;
+  }
+
+  .login-form /deep/ .el-button--primary {
+    height: 44px;
+    font-size: 15px;
+    border-radius: 6px;
+  }
+
+  .verify-code-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .send-code-btn {
+    width: 120px;
+    padding: 8px 10px;
+    font-size: 13px;
+    height: 44px;
+  }
+
+  .wechat-login-area {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .wechat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .wechat-title {
+    font-size: 14px;
+  }
+
+  .wechat-desc {
+    font-size: 12px;
+  }
+
+  .wechat-arrow {
+    font-size: 20px;
+  }
+
+  .bind-tip {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .demo-tips {
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+
+  .demo-tips p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+}
+
+/* 小屏幕手机 */
+@media screen and (max-width: 480px) {
+  .login-box {
+    padding: 24px 18px;
+  }
+
+  .login-header {
+    margin-bottom: 24px;
+  }
+
+  .login-header .logo {
+    font-size: 38px;
+  }
+
+  .login-header h1 {
+    font-size: 20px;
+  }
+
+  .role-selector {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .role-card {
+    padding: 10px 4px;
+  }
+
+  .role-icon {
+    font-size: 20px;
+  }
+
+  .role-name {
+    font-size: 10px;
+  }
+
+  .wechat-login-area {
+    padding: 14px;
+  }
+}
+
+/* 横屏模式 */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .login-box {
+    padding: 20px 24px;
+    min-height: auto;
+  }
+
+  .login-header {
+    margin-bottom: 20px;
+  }
+
+  .role-selector {
+    margin-bottom: 20px;
+  }
+}
 </style>

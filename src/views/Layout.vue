@@ -1,14 +1,19 @@
 <template>
-  <div class="layout-container">
+  <div class="layout-container" :class="{ 'is-mobile': isMobile }">
     <el-container>
-      <el-aside width="240px" :class="{ 'is-collapsed': isCollapsed }">
+      <!-- 桌面端侧边栏 / 移动端抽屉式侧边栏 -->
+      <el-aside
+        v-if="!isMobile"
+        width="240px"
+        :class="{ 'is-collapsed': isCollapsed }"
+        class="desktop-aside">
         <div class="sidebar">
           <div class="logo" @click="handleLogoClick">
             <i class="el-icon-s-platform"></i>
             <span v-if="!isCollapsed">健康管理系统</span>
           </div>
-          
-          <!-- 角色切换器：仅校级管理员能看到（用于巡检其他角色模块），其余角色登录身份固定 -->
+
+          <!-- 角色切换器：仅校级管理员能看到 -->
           <div class="role-switcher" v-if="!isCollapsed && userInfo.role === 'admin'">
             <el-select v-model="currentRole" @change="handleRoleChange" placeholder="选择角色预览">
               <el-option label="校级管理员" value="admin"></el-option>
@@ -18,7 +23,7 @@
               <el-option label="校园校医" value="doctor"></el-option>
             </el-select>
           </div>
-          <!-- 非 admin 角色：展示当前登录身份，明确告知权限范围固定 -->
+          <!-- 非 admin 角色：展示当前登录身份 -->
           <div class="role-switcher" v-if="!isCollapsed && userInfo.role !== 'admin'">
             <div class="fixed-role-badge">
               <i class="el-icon-user-solid" style="margin-right:6px;"></i>
@@ -31,8 +36,7 @@
             :collapse="isCollapsed"
             :unique-opened="true"
             class="el-menu-vertical"
-            @select="handleSelect"
-          >
+            @select="handleSelect">
             <template v-for="group in menuGroups">
               <div v-if="group.items.length > 0" :key="group.name" class="menu-group-title">
                 {{ group.name }}
@@ -40,8 +44,7 @@
               <el-menu-item
                 v-for="item in group.items"
                 :key="item.path"
-                :index="item.path"
-              >
+                :index="item.path">
                 <i :class="item.icon"></i>
                 <span slot="title">{{ item.title }}</span>
               </el-menu-item>
@@ -49,26 +52,105 @@
           </el-menu>
         </div>
       </el-aside>
-      
+
+      <!-- 移动端侧边栏（抽屉式） -->
+      <el-drawer
+        v-if="isMobile"
+        :visible.sync="mobileDrawerVisible"
+        direction="ltr"
+        size="80%"
+        :with-header="false"
+        :modal-append-to-body="true"
+        :append-to-body="true"
+        :wrapperClosable="true"
+        custom-class="mobile-drawer">
+        <div class="sidebar mobile-sidebar">
+          <div class="logo" @click="handleLogoClick; mobileDrawerVisible = false;">
+            <i class="el-icon-s-platform"></i>
+            <span>健康管理系统</span>
+          </div>
+
+          <!-- 移动端用户信息 -->
+          <div class="mobile-user-info">
+            <img :src="userAvatar" class="mobile-avatar" alt="avatar">
+            <div class="mobile-user-detail">
+              <div class="mobile-username">{{ userInfo.username || '用户' }}</div>
+              <el-tag :type="roleTagType" size="mini">{{ roleDisplayName }}</el-tag>
+            </div>
+          </div>
+
+          <!-- 角色切换器：仅校级管理员 -->
+          <div class="role-switcher" v-if="userInfo.role === 'admin'">
+            <el-select v-model="currentRole" @change="handleRoleChange" placeholder="选择角色预览">
+              <el-option label="校级管理员" value="admin"></el-option>
+              <el-option label="班主任/任课教师" value="teacher"></el-option>
+              <el-option label="家长" value="parent"></el-option>
+              <el-option label="学生" value="student"></el-option>
+              <el-option label="校园校医" value="doctor"></el-option>
+            </el-select>
+          </div>
+          <div class="role-switcher" v-else>
+            <div class="fixed-role-badge">
+              <i class="el-icon-user-solid" style="margin-right:6px;"></i>
+              当前身份：{{ roleDisplayName }}
+            </div>
+          </div>
+
+          <el-menu
+            :default-active="activeMenu"
+            :unique-opened="true"
+            class="el-menu-vertical"
+            @select="handleSelect">
+            <template v-for="group in menuGroups">
+              <div v-if="group.items.length > 0" :key="group.name" class="menu-group-title">
+                {{ group.name }}
+              </div>
+              <el-menu-item
+                v-for="item in group.items"
+                :key="item.path"
+                :index="item.path">
+                <i :class="item.icon"></i>
+                <span slot="title">{{ item.title }}</span>
+              </el-menu-item>
+            </template>
+          </el-menu>
+        </div>
+      </el-drawer>
+
       <el-container>
         <el-header>
           <div class="header-content">
             <div class="header-left">
-              <i class="el-icon-s-fold fold-btn" @click="toggleCollapse"></i>
-              <el-button type="text" icon="el-icon-back" @click="goBack" class="back-btn">返回</el-button>
-              <el-breadcrumb separator="/">
+              <!-- 移动端菜单按钮 -->
+              <i v-if="isMobile" class="el-icon-menu fold-btn mobile-menu-btn" @click="mobileDrawerVisible = true"></i>
+
+              <i v-else class="el-icon-s-fold fold-btn" @click="toggleCollapse"></i>
+
+              <el-button
+                v-if="!isMobile"
+                type="text"
+                icon="el-icon-back"
+                @click="goBack"
+                class="back-btn">返回</el-button>
+
+              <el-breadcrumb v-if="!isMobile" separator="/">
                 <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
                 <el-breadcrumb-item v-if="currentPage">{{ currentPage }}</el-breadcrumb-item>
               </el-breadcrumb>
+
+              <!-- 移动端标题 -->
+              <span v-if="isMobile" class="mobile-title">
+                {{ currentPage || '健康管理系统' }}
+              </span>
             </div>
             <div class="header-right">
               <!-- 通知铃铛 -->
-              <el-badge :value="notificationCount" class="notification-badge">
+              <el-badge :value="notificationCount" class="notification-badge" v-if="!isMobile">
                 <i class="el-icon-bell" @click="goToNotification"></i>
               </el-badge>
-              
-              <!-- 用户信息下拉 -->
-              <el-dropdown @command="handleCommand" trigger="click">
+
+              <!-- 桌面端用户信息下拉 -->
+              <el-dropdown v-if="!isMobile" @command="handleCommand" trigger="click">
                 <span class="el-dropdown-link user-info">
                   <img :src="userAvatar" class="avatar" alt="avatar">
                   <span class="username">{{ userInfo.username || '用户' }}</span>
@@ -92,10 +174,36 @@
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </el-dropdown>
+
+              <!-- 移动端用户头像（点击弹出菜单） -->
+              <img
+                v-if="isMobile"
+                :src="userAvatar"
+                class="avatar mobile-header-avatar"
+                alt="avatar"
+                @click="mobileUserMenuVisible = !mobileUserMenuVisible">
+              <el-dropdown
+                v-if="isMobile"
+                @command="handleCommand"
+                trigger="manual"
+                :visible.sync="mobileUserMenuVisible">
+                <span slot="dropdown" style="display:none"></span>
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item command="profile">
+                    <i class="el-icon-user"></i>个人中心
+                  </el-dropdown-item>
+                  <el-dropdown-item command="settings">
+                    <i class="el-icon-setting"></i>系统设置
+                  </el-dropdown-item>
+                  <el-dropdown-item divided command="logout">
+                    <i class="el-icon-switch-button"></i>退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
             </div>
           </div>
         </el-header>
-        
+
         <el-main>
           <router-view />
         </el-main>
@@ -137,14 +245,46 @@ export default {
   data() {
     return {
       isCollapsed: false,
+      isMobile: false,
+      mobileDrawerVisible: false,
+      mobileUserMenuVisible: false,
       currentRole: 'admin',
       userInfo: {
         username: '管理员',
         role: 'admin'
       },
-      notificationCount: 5
+      notificationCount: 5,
+      resizeTimer: null
     };
   },
+  mounted() {
+    this.checkIsMobile();
+    this.syncLoginRole();
+    window.addEventListener('resize', this.handleResize);
+  },
+  beforeDestroy() {
+    window.removeEventListener('resize', this.handleResize);
+    if (this.resizeTimer) {
+      clearTimeout(this.resizeTimer);
+    }
+  },
+  methods: {
+    checkIsMobile() {
+      this.isMobile = window.innerWidth <= 768;
+    },
+    handleResize() {
+      if (this.resizeTimer) {
+        clearTimeout(this.resizeTimer);
+      }
+      this.resizeTimer = setTimeout(() => {
+        const wasMobile = this.isMobile;
+        this.checkIsMobile();
+        if (this.isMobile !== wasMobile && this.isMobile) {
+          this.mobileDrawerVisible = false;
+          this.mobileUserMenuVisible = false;
+        }
+      }, 150);
+    },
   computed: {
     activeMenu() {
       return this.$route.path;
@@ -534,6 +674,9 @@ export default {
     },
     
     handleSelect(path) {
+      if (this.isMobile) {
+        this.mobileDrawerVisible = false;
+      }
       this.$router.push(path);
     },
     
@@ -599,6 +742,8 @@ export default {
 <style scoped>
 .layout-container {
   height: 100%;
+  min-height: 100vh;
+  width: 100%;
 }
 
 .el-container {
@@ -798,4 +943,151 @@ export default {
   padding: 20px;
   overflow-y: auto;
 }
-</style>
+
+/* ============ 移动端样式 ============ */
+@media screen and (max-width: 768px) {
+  .layout-container {
+    min-height: 100vh;
+  }
+
+  .layout-container.is-mobile .el-container {
+    flex-direction: column;
+  }
+
+  .layout-container.is-mobile .el-container > .el-container {
+    flex-direction: column;
+  }
+
+  /* 调整头部高度 */
+  .el-header {
+    height: 50px !important;
+    padding: 0 12px !important;
+  }
+
+  .header-content {
+    min-width: 0;
+  }
+
+  .header-left {
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* 移动端菜单按钮 */
+  .mobile-menu-btn {
+    font-size: 22px;
+    color: #303133;
+  }
+
+  /* 移动端标题 */
+  .mobile-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #303133;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+
+  .header-right {
+    gap: 12px;
+  }
+
+  /* 移动端头部头像 */
+  .mobile-header-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* 主要内容区域 */
+  .el-main {
+    padding: 12px !important;
+    height: calc(100vh - 50px) !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .el-header {
+    padding: 0 10px !important;
+  }
+
+  .mobile-title {
+    font-size: 14px;
+    max-width: 120px;
+  }
+
+  .el-main {
+    padding: 10px !important;
+  }
+}
+
+/* ============ 移动端抽屉式侧边栏样式 ============ */
+.mobile-sidebar {
+  background-color: #304156;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.mobile-sidebar .logo {
+  padding: 0 20px;
+  font-size: 18px;
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #263445;
+  border-bottom: 1px solid #1f2d3d;
+}
+
+.mobile-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.mobile-user-detail {
+  flex: 1;
+  overflow: hidden;
+}
+
+.mobile-username {
+  font-size: 15px;
+  color: #fff;
+  font-weight: 500;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-sidebar .el-menu-vertical {
+  height: auto;
+  min-height: 300px;
+}
+
+.mobile-sidebar .el-menu-vertical .el-menu-item {
+  height: 50px;
+  line-height: 50px;
+}
+
+.mobile-sidebar .menu-group-title {
+  padding: 16px 20px 8px;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+/* 抽屉遮罩层样式 */
+.mobile-drawer >>> .el-drawer__header {
+  margin-bottom: 0;
+}
+
+.mobile-drawer >>> .el-drawer__body {
+  padding: 0;
+  overflow: hidden;
+}
