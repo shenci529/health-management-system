@@ -143,9 +143,19 @@
                 <span v-if="record.approver">（{{ record.approver }}）</span>
               </span>
             </div>
-            <p v-if="record.approveRemark" class="leave-remark">
-              <i class="el-icon-document"></i> 审批意见：{{ record.approveRemark }}
+            <p v-if="record.approveRemark" class="leave-remark" :class="record.status === 'approved' ? 'remark-approved' : (record.status === 'rejected' ? 'remark-rejected' : '')">
+              <i class="el-icon-document"></i> {{ record.status === 'approved' ? '老师批注意见' : (record.status === 'rejected' ? '拒绝原因' : '审批意见') }}：{{ record.approveRemark }}
             </p>
+            <!-- 审批结果醒目提示 -->
+            <div v-if="record.status === 'approved'" class="result-banner approved">
+              <i class="el-icon-circle-check"></i> 老师已批准，审批人：{{ record.approver || '教师' }}，时间：{{ record.approveTime }}
+            </div>
+            <div v-if="record.status === 'rejected'" class="result-banner rejected">
+              <i class="el-icon-circle-close"></i> 老师已拒绝，审批人：{{ record.approver || '教师' }}，时间：{{ record.approveTime }}
+            </div>
+            <div v-if="record.status === 'cancelled'" class="result-banner cancelled">
+              <i class="el-icon-warning-outline"></i> 申请已撤销
+            </div>
           </div>
           <div class="leave-actions">
             <el-button 
@@ -183,8 +193,25 @@
     <el-dialog
       title="请假详情"
       :visible.sync="detailDialogVisible"
-      width="500px">
+      width="550px">
       <div v-if="currentRecord" class="detail-content">
+        <!-- 状态大卡片 -->
+        <div class="detail-status-card" :class="currentRecord.status">
+          <div class="detail-status-icon">
+            <i :class="statusIcon(currentRecord.status)"></i>
+          </div>
+          <div class="detail-status-text">
+            <div class="detail-status-title">{{ statusText(currentRecord.status) }}</div>
+            <div class="detail-status-sub">
+              <span v-if="currentRecord.status === 'pending'">⏳ 等待老师审批中...</span>
+              <span v-else-if="currentRecord.status === 'approved'">✅ 老师已批准您的申请</span>
+              <span v-else-if="currentRecord.status === 'rejected'">❌ 老师已拒绝您的申请</span>
+              <span v-else-if="currentRecord.status === 'cancelled'">⚠️ 您已撤销申请</span>
+              <span v-else-if="currentRecord.status === 'registered'">📝 老师已登记</span>
+            </div>
+          </div>
+        </div>
+
         <div class="detail-row">
           <span class="detail-label">学生姓名：</span>
           <span>{{ currentRecord.studentName || '—' }}</span>
@@ -208,26 +235,29 @@
           <span>{{ timeSlotsText(currentRecord.timeSlots) }}</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">申请状态：</span>
-          <el-tag :type="statusTagType(currentRecord.status)">
-            {{ statusText(currentRecord.status) }}
-          </el-tag>
+          <span class="detail-label">申请时间：</span>
+          <span>{{ currentRecord.applyTime }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">请假原因：</span>
           <p class="detail-reason">{{ currentRecord.reason }}</p>
         </div>
-        <div v-if="currentRecord.approveTime" class="detail-row">
-          <span class="detail-label">审批时间：</span>
-          <span>{{ currentRecord.approveTime }}</span>
-        </div>
-        <div v-if="currentRecord.approver" class="detail-row">
-          <span class="detail-label">审批人：</span>
-          <span>{{ currentRecord.approver }}</span>
-        </div>
-        <div v-if="currentRecord.approveRemark" class="detail-row">
-          <span class="detail-label">审批备注：</span>
-          <p class="detail-remark">{{ currentRecord.approveRemark }}</p>
+
+        <!-- 审批信息区域 -->
+        <div v-if="currentRecord.approveTime" class="detail-approve-section">
+          <div class="detail-section-title">📝 审批信息</div>
+          <div class="detail-row">
+            <span class="detail-label">审批时间：</span>
+            <span>{{ currentRecord.approveTime }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">审批人：</span>
+            <span>{{ currentRecord.approver || '老师' }}</span>
+          </div>
+          <div v-if="currentRecord.approveRemark" class="detail-row">
+            <span class="detail-label">审批意见：</span>
+            <p class="detail-remark">{{ currentRecord.approveRemark }}</p>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -615,6 +645,50 @@ export default {
   font-size: 13px;
 }
 
+.leave-remark.remark-approved {
+  color: #67c23a;
+  background: #f0f9eb;
+}
+
+.leave-remark.remark-rejected {
+  color: #f56c6c;
+  background: #fef0f0;
+}
+
+/* 审批结果醒目横幅 */
+.result-banner {
+  margin-top: 10px;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-banner i {
+  font-size: 18px;
+}
+
+.result-banner.approved {
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
+  color: #67c23a;
+  border-left: 4px solid #67c23a;
+}
+
+.result-banner.rejected {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+  color: #f56c6c;
+  border-left: 4px solid #f56c6c;
+}
+
+.result-banner.cancelled {
+  background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%);
+  color: #909399;
+  border-left: 4px solid #909399;
+}
+
 .leave-meta {
   display: flex;
   gap: 20px;
@@ -658,6 +732,124 @@ export default {
 /* 详情弹窗 */
 .detail-content {
   padding: 10px;
+}
+
+/* 状态大卡片 */
+.detail-status-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+}
+
+.detail-status-card.pending {
+  background: linear-gradient(135deg, #fdf6ec 0%, #faecd8 100%);
+  border: 2px solid #e6a23c;
+}
+
+.detail-status-card.approved {
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
+  border: 2px solid #67c23a;
+}
+
+.detail-status-card.rejected {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+  border: 2px solid #f56c6c;
+}
+
+.detail-status-card.cancelled {
+  background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%);
+  border: 2px solid #909399;
+}
+
+.detail-status-card.registered {
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+  border: 2px solid #409eff;
+}
+
+.detail-status-icon {
+  font-size: 48px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.detail-status-card.pending .detail-status-icon {
+  color: #e6a23c;
+}
+
+.detail-status-card.approved .detail-status-icon {
+  color: #67c23a;
+}
+
+.detail-status-card.rejected .detail-status-icon {
+  color: #f56c6c;
+}
+
+.detail-status-card.cancelled .detail-status-icon {
+  color: #909399;
+}
+
+.detail-status-card.registered .detail-status-icon {
+  color: #409eff;
+}
+
+.detail-status-text {
+  flex: 1;
+}
+
+.detail-status-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.detail-status-card.pending .detail-status-title {
+  color: #e6a23c;
+}
+
+.detail-status-card.approved .detail-status-title {
+  color: #67c23a;
+}
+
+.detail-status-card.rejected .detail-status-title {
+  color: #f56c6c;
+}
+
+.detail-status-card.cancelled .detail-status-title {
+  color: #909399;
+}
+
+.detail-status-card.registered .detail-status-title {
+  color: #409eff;
+}
+
+.detail-status-sub {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 审批信息区域 */
+.detail-approve-section {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.detail-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
 }
 
 .detail-row {

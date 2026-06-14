@@ -122,12 +122,13 @@
 
     <!-- 家长请假申请 - 待审批 -->
     <div class="pending-section" v-if="pendingCount > 0">
-      <div class="section-header">
+      <div class="section-header pending-header">
         <h2>
-          <i class="el-icon-bell"></i>
-          待审批的请假申请
-          <el-tag type="warning" size="medium">{{ pendingCount }} 条待处理</el-tag>
+          <i class="el-icon-bell pending-bell-icon"></i>
+          🔔 待审批的请假申请
+          <el-tag type="warning" size="medium" effect="dark">{{ pendingCount }} 条待处理</el-tag>
         </h2>
+        <span class="pending-hint">请及时审批，家长将收到通知</span>
       </div>
       <div class="pending-list">
         <div v-for="item in pendingRequests" :key="item.id" class="pending-item">
@@ -146,11 +147,11 @@
             </div>
           </div>
           <div class="pending-actions">
-            <el-button type="success" size="small" icon="el-icon-check" @click="openApproveDialog(item)">
-              批准
+            <el-button type="success" size="medium" icon="el-icon-check" plain @click="openApproveDialog(item)">
+              ✅ 通过
             </el-button>
-            <el-button type="danger" size="small" icon="el-icon-close" @click="openApproveDialog(item)">
-              拒绝
+            <el-button type="danger" size="medium" icon="el-icon-close" plain @click="openApproveDialog(item)">
+              ❌ 拒绝
             </el-button>
           </div>
         </div>
@@ -252,44 +253,58 @@
 
     <!-- 审批弹窗 -->
     <el-dialog
-      title="审批请假申请"
+      title="✅ 审批请假申请"
       :visible.sync="approveDialogVisible"
-      width="500px"
+      width="560px"
       @closed="approveRecord = null; approveRemark = ''">
       <div v-if="approveRecord" class="approve-form">
-        <el-form label-width="100px">
-          <el-form-item label="学生姓名">
-            <span>{{ approveRecord.studentName }}</span>
-          </el-form-item>
-          <el-form-item label="申请人">
-            <span>{{ approveRecord.parentName || '家长' }}</span>
-          </el-form-item>
-          <el-form-item label="请假类型">
-            <el-tag :type="getTypeTag(approveRecord.type)">{{ getTypeText(approveRecord.type) }}</el-tag>
-          </el-form-item>
-          <el-form-item label="请假日期">
-            <span>{{ approveRecord.startDate }}{{ approveRecord.endDate && approveRecord.endDate !== approveRecord.startDate ? ' 至 ' + approveRecord.endDate : '' }}</span>
-          </el-form-item>
-          <el-form-item label="请假原因">
+        <!-- 信息摘要卡片 -->
+        <div class="approve-summary">
+          <div class="summary-row">
+            <span class="summary-label">👨‍🎓 学生：</span>
+            <span class="summary-value">{{ approveRecord.studentName }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">👤 申请人：</span>
+            <span class="summary-value">{{ approveRecord.parentName || '家长' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">📋 类型：</span>
+            <el-tag :type="getTypeTag(approveRecord.type)" size="small">{{ getTypeText(approveRecord.type) }}</el-tag>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">📅 时间：</span>
+            <span class="summary-value">{{ approveRecord.startDate }}{{ approveRecord.endDate && approveRecord.endDate !== approveRecord.startDate ? ' 至 ' + approveRecord.endDate : '' }}</span>
+          </div>
+          <div class="summary-row reason-row">
+            <span class="summary-label">💬 原因：</span>
             <div class="reason-text">{{ approveRecord.reason }}</div>
-          </el-form-item>
-          <el-form-item label="申请时间">
-            <span>{{ approveRecord.applyTime }}</span>
-          </el-form-item>
-          <el-form-item label="审批备注">
+          </div>
+        </div>
+
+        <el-form label-width="100px" class="approve-input">
+          <el-form-item label="审批意见">
             <el-input
               type="textarea"
               :rows="3"
               v-model="approveRemark"
-              placeholder="请输入审批意见（可选）">
+              placeholder="请输入审批意见（家长会收到此通知）">
             </el-input>
           </el-form-item>
         </el-form>
+
+        <div class="approve-notice">
+          <i class="el-icon-info"></i> 审批后，家长会立即收到通知。
+        </div>
       </div>
-      <div slot="footer">
-        <el-button @click="approveDialogVisible = false">取消</el-button>
-        <el-button type="danger" icon="el-icon-close" @click="rejectRequest">拒绝</el-button>
-        <el-button type="primary" icon="el-icon-check" @click="approveRequest">批准</el-button>
+      <div slot="footer" class="approve-footer">
+        <el-button size="medium" @click="approveDialogVisible = false">取消</el-button>
+        <el-button type="danger" size="medium" icon="el-icon-close" @click="rejectRequest">
+          ❌ 拒绝申请
+        </el-button>
+        <el-button type="success" size="medium" icon="el-icon-check" @click="approveRequest">
+          ✅ 通过申请
+        </el-button>
       </div>
     </el-dialog>
 
@@ -508,28 +523,38 @@ export default {
     // 批准请假
     approveRequest() {
       if (!this.approveRecord) return;
+      const record = this.approveRecord;
       LeaveStore.approve(
-        this.approveRecord.id,
+        record.id,
         'approve',
         this.approveRemark || '已批准',
         this.getApproverName()
       );
       this.approveDialogVisible = false;
       this.loadRecords();
-      this.$message.success('已批准请假申请');
+      this.$message({
+        type: 'success',
+        message: `✅ 已批准 ${record.studentName} 的请假申请，通知已发送给家长`,
+        duration: 3000
+      });
     },
     // 拒绝请假
     rejectRequest() {
       if (!this.approveRecord) return;
+      const record = this.approveRecord;
       LeaveStore.approve(
-        this.approveRecord.id,
+        record.id,
         'reject',
         this.approveRemark || '已拒绝',
         this.getApproverName()
       );
       this.approveDialogVisible = false;
       this.loadRecords();
-      this.$message.success('已拒绝请假申请');
+      this.$message({
+        type: 'warning',
+        message: `❌ 已拒绝 ${record.studentName} 的请假申请，通知已发送给家长`,
+        duration: 3000
+      });
     },
     // 删除记录
     deleteRecord(row) {
@@ -875,11 +900,48 @@ export default {
 
 /* 待审批申请区块 */
 .pending-section {
-  background: #fdf6ec;
-  border: 1px solid #f5dab1;
+  background: linear-gradient(135deg, #fef5e0 0%, #fdf0d5 100%);
+  border: 2px solid #e6a23c;
   border-radius: 15px;
   padding: 25px;
   margin-bottom: 25px;
+  box-shadow: 0 4px 15px rgba(230, 162, 60, 0.2);
+  animation: pulse-pending 2s ease-in-out infinite;
+}
+
+@keyframes pulse-pending {
+  0%, 100% { box-shadow: 0 4px 15px rgba(230, 162, 60, 0.2); }
+  50% { box-shadow: 0 4px 25px rgba(230, 162, 60, 0.4); }
+}
+
+.pending-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pending-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pending-bell-icon {
+  animation: shake 1.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  75% { transform: rotate(15deg); }
+}
+
+.pending-hint {
+  font-size: 13px;
+  color: #e6a23c;
+  margin-top: 8px;
+  font-weight: 500;
 }
 
 .pending-list {
@@ -888,13 +950,20 @@ export default {
 
 .pending-item {
   background: #fff;
-  border-radius: 10px;
-  padding: 15px 20px;
-  margin-bottom: 10px;
+  border-radius: 12px;
+  padding: 18px 25px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-left: 4px solid #E6A23C;
+  border-left: 5px solid #e6a23c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.pending-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
 .pending-info {
@@ -904,13 +973,15 @@ export default {
 .pending-main {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .pending-name {
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  color: #303133;
+  font-size: 16px;
 }
 
 .pending-parent {
@@ -925,19 +996,30 @@ export default {
 }
 
 .pending-reason {
-  color: #666;
+  color: #606266;
   font-size: 14px;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  background: #f5f7fa;
+  padding: 10px 12px;
+  border-radius: 6px;
 }
 
 .pending-meta {
-  color: #999;
+  color: #909399;
   font-size: 12px;
 }
 
 .pending-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pending-actions .el-button {
+  padding: 12px 24px !important;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
 }
 
 /* 审批弹窗 */
@@ -945,11 +1027,74 @@ export default {
   margin-top: 10px;
 }
 
+/* 信息摘要卡片 */
+.approve-summary {
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-left: 4px solid #409eff;
+}
+
+.summary-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-row.reason-row {
+  flex-direction: column;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: #303133;
+  min-width: 80px;
+  margin-right: 10px;
+}
+
+.summary-value {
+  color: #606266;
+  flex: 1;
+}
+
 .reason-text {
-  background: #f5f7fa;
-  padding: 10px;
-  border-radius: 5px;
+  background: #fff;
+  padding: 12px 15px;
+  border-radius: 6px;
   color: #606266;
   line-height: 1.6;
+  margin-top: 8px;
+  border: 1px solid #e4e7ed;
+}
+
+.approve-input {
+  margin-top: 15px;
+}
+
+.approve-notice {
+  background: #fdf6ec;
+  border-left: 3px solid #e6a23c;
+  padding: 10px 15px;
+  margin-top: 15px;
+  color: #e6a23c;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.approve-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.approve-footer .el-button {
+  padding: 12px 28px !important;
+  font-weight: 600;
+  font-size: 14px;
 }
 </style>
