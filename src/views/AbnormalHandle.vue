@@ -220,7 +220,7 @@ export default {
           .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
           .join('&');
         
-        const res = await fetch(`/api/abnormal?${query}`);
+        const res = await fetch(this.$api(`/api/abnormal?${query}`));
         const data = await res.json();
         if (data.success) {
           this.tableData = data.data;
@@ -235,7 +235,7 @@ export default {
     },
     async loadStats() {
       try {
-        const res = await fetch('/api/abnormal/stats');
+        const res = await fetch(this.$api('/api/abnormal/stats'));
         const data = await res.json();
         if (data.success) {
           this.urgentCount = data.data.urgentCount;
@@ -304,7 +304,7 @@ export default {
       }
       
       try {
-        const res = await fetch(`/api/abnormal/${this.formData.id}/handle`, {
+        const res = await fetch(this.$api(`/api/abnormal/${this.formData.id}/handle`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

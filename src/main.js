@@ -27,6 +27,19 @@ Vue.prototype.$echarts = echarts;
 // 安装ElementUI插件，让ElementUI的所有组件在Vue项目中可用
 Vue.use(ElementUI);
 
+// 后端API基础地址
+// 生产构建时由 GitHub Actions 的 VITE_API_BASE 变量注入（Railway后端地址）
+// 本地开发时 vite.config.js 的 proxy 会将 /api 请求转发到 localhost:3002
+const PUBLIC_API_BASE = process.env.VITE_API_BASE || '';
+Vue.prototype.$API_BASE = PUBLIC_API_BASE;
+Vue.prototype.$api = function(path) {
+  // path 以 /api/... 开头时，拼接上公网基础地址；否则按原样返回
+  if (typeof path === 'string' && path.startsWith('/')) {
+    return PUBLIC_API_BASE + path;
+  }
+  return path;
+};
+
 // 关闭Vue的生产提示（开发环境下会有一些提示信息，正式上线后不需要）
 Vue.config.productionTip = false;
 

@@ -22,6 +22,10 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true
   },
-  base: '/health-management-system/',
+  base: './',
+  define: {
+    // 构建时注入后端API地址（Railway部署后端时设置RAILWAY_BACKEND_URL变量）
+    'process.env.VITE_API_BASE': JSON.stringify(process.env.VITE_API_BASE || '')
+  },
   plugins: [createVuePlugin()]
 })

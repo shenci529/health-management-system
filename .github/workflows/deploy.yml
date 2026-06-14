@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages + Build Info
 
 on:
   push:
@@ -24,7 +24,17 @@ jobs:
         
       - name: Build project
         run: npm run build
+        env:
+          # 这里的 URL 会在构建时被注入到前端代码中
+          # 后端 Railway 部署地址
+          VITE_API_BASE: ${{ vars.RAILWAY_BACKEND_URL || 'https://your-backend.railway.app' }}
         
+      - name: Generate build info
+        run: |
+          echo "Build completed at $(date)"
+          echo "API_BASE=${{ vars.RAILWAY_BACKEND_URL || 'not set' }}"
+          echo "GitHub Pages URL: https://shenci529.github.io/health-management-system/"
+          
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

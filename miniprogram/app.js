@@ -55,11 +55,28 @@ App({
     healthKnowledge: mockKnowledge, // 健康知识列表
     exercises: mockExercises,       // 运动项目列表
     healthLogs: mockHealthLogs,     // 健康日志列表
+    // 后端API公网基础地址（通过localtunnel内网穿透暴露）
+    apiBaseUrl: 'https://afraid-papers-call.loca.lt'
   },
 
   // 小程序启动时执行的函数
   onLaunch() {
     this.checkLoginStatus(); // 检查用户是否已经登录
+  },
+
+  // 统一的后端请求方法：让小程序各页面可以直接调用 app.request('/api/xxx')
+  request(url, options = {}) {
+    const fullUrl = this.globalData.apiBaseUrl + url;
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: fullUrl,
+        method: options.method || 'GET',
+        data: options.data || {},
+        header: Object.assign({ 'content-type': 'application/json' }, options.header || {}),
+        success: (res) => resolve(res.data),
+        fail: (err) => reject(err)
+      });
+    });
   },
 
   // 检查登录状态：从本地存储中读取用户信息
