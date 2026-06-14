@@ -1,0 +1,23 @@
+name: 配置后端API变量
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_url:
+        description: '后端API地址 (例如: https://health-management-backend.onrender.com)'
+        required: true
+        default: 'https://health-management-backend.onrender.com'
+
+jobs:
+  configure-variable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 配置后端API变量
+        run: |
+          echo "后端API地址: ${{ github.event.inputs.backend_url }}"
+          echo "请手动在 GitHub 仓库设置变量，或运行以下命令配置："
+          echo ""
+          echo "gh variable set BACKEND_API_URL --body '${{ github.event.inputs.backend_url }}'"
+          echo ""
+          echo "或者访问以下链接手动配置："
+          echo "https://github.com/${{ github.repository }}/settings/variables/actions"
