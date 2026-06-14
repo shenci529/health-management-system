@@ -56,7 +56,7 @@ App({
     exercises: mockExercises,       // 运动项目列表
     healthLogs: mockHealthLogs,     // 健康日志列表
     // 后端API公网基础地址（通过localtunnel内网穿透暴露）
-    apiBaseUrl: 'https://afraid-papers-call.loca.lt'
+    apiBaseUrl: 'https://tired-phones-think.loca.lt'
   },
 
   // 小程序启动时执行的函数
