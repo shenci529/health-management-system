@@ -8,9 +8,9 @@
             <span v-if="!isCollapsed">健康管理系统</span>
           </div>
           
-          <!-- 角色切换器 -->
-          <div class="role-switcher" v-if="!isCollapsed">
-            <el-select v-model="currentRole" @change="handleRoleChange" placeholder="选择角色">
+          <!-- 角色切换器：仅校级管理员能看到（用于巡检其他角色模块），其余角色登录身份固定 -->
+          <div class="role-switcher" v-if="!isCollapsed && userInfo.role === 'admin'">
+            <el-select v-model="currentRole" @change="handleRoleChange" placeholder="选择角色预览">
               <el-option label="校级管理员" value="admin"></el-option>
               <el-option label="班主任/任课教师" value="teacher"></el-option>
               <el-option label="家长" value="parent"></el-option>
@@ -18,7 +18,14 @@
               <el-option label="校园校医" value="doctor"></el-option>
             </el-select>
           </div>
-          
+          <!-- 非 admin 角色：展示当前登录身份，明确告知权限范围固定 -->
+          <div class="role-switcher" v-if="!isCollapsed && userInfo.role !== 'admin'">
+            <div class="fixed-role-badge">
+              <i class="el-icon-user-solid" style="margin-right:6px;"></i>
+              当前身份：{{ roleDisplayName }}
+            </div>
+          </div>
+
           <el-menu
             :default-active="activeMenu"
             :collapse="isCollapsed"
@@ -98,6 +105,33 @@
 </template>
 
 <script>
+// 从独立的权限表模块导入（唯一事实来源，无循环依赖）
+// Layout.vue 不依赖 router/index.js，避免「router → Layout → router」循环引用
+import { ROLE_PERMISSIONS, getAllowedRoles } from '@/permission';
+
+// 角色-显示名映射
+const ROLE_DISPLAY_NAMES = {
+  admin: '校级管理员',
+  teacher: '班主任',
+  parent: '家长',
+  student: '学生',
+  doctor: '校医'
+};
+
+// 通过路由表查询某路径允许的角色数组（/xxx 会被转成 xxx 作为 path key）
+// 注意：此函数作为 meta.roles 的兜底读取；优先使用 ROLE_PERMISSIONS
+function getRolesByPath(router, path) {
+  if (!router || !router.options || !router.options.routes) return ['admin'];
+  const root = router.options.routes.find((r) => r.children && r.children.length);
+  if (!root) return ['admin'];
+  const cleanPath = String(path).replace(/^\//, '');
+  const child = root.children.find((c) => c.path === cleanPath);
+  if (child && child.meta && child.meta.roles && child.meta.roles.length) {
+    return child.meta.roles;
+  }
+  return ['admin'];
+}
+
 export default {
   name: 'Layout',
   data() {
@@ -129,14 +163,7 @@ export default {
       return avatars[this.currentRole] || avatars.student;
     },
     roleDisplayName() {
-      const names = {
-        admin: '校级管理员',
-        teacher: '班主任',
-        parent: '家长',
-        student: '学生',
-        doctor: '校医'
-      };
-      return names[this.currentRole] || '用户';
+      return ROLE_DISPLAY_NAMES[this.currentRole] || '用户';
     },
     roleTagType() {
       const types = {
@@ -148,19 +175,65 @@ export default {
       };
       return types[this.currentRole] || 'info';
     },
+    // 核心：菜单渲染策略
+    //   - admin：显示全部菜单（与守卫"admin 永远放行"保持一致）
+    //   - 其他角色：只显示 ROLE_PERMISSIONS 中自己有权限的菜单项
     menuGroups() {
-      return this.getMenuByRole(this.currentRole);
+      const rawGroups = this.getMenuByRole(this.currentRole);
+      const roleToCheck = this.currentRole;
+
+      // admin：不过滤，直接显示全部（getMenuByRole('admin') 已包含全部模块）
+      if (roleToCheck === 'admin') return rawGroups;
+
+      // 其他角色：用权限表过滤
+      const PERMS = ROLE_PERMISSIONS;
+      return rawGroups
+        .map((group) => ({
+          name: group.name,
+          items: (group.items || []).filter((item) => {
+            const key = String(item.path).replace(/^\//, '');
+            const allowed = PERMS[key];
+            if (!allowed || !allowed.length) return false; // 未知路径：非 admin 不显示
+            return allowed.includes(roleToCheck);
+          })
+        }))
+        .filter((group) => group.items.length > 0);
     }
   },
   mounted() {
-    const user = localStorage.getItem('userInfo');
-    if (user) {
-      const parsed = JSON.parse(user);
-      this.userInfo = parsed;
-      this.currentRole = parsed.role || 'admin';
-    }
+    this.syncLoginRole();
+  },
+  activated() {
+    this.syncLoginRole();
   },
   methods: {
+    // 同步当前登录身份到组件状态
+    // ⚠️ key 原则：currentRole 与 userInfo.role 严格一致，绝不允许出现偏差
+    //   - admin 登录：currentRole = 'admin'（显示全部菜单）
+    //   - 其他角色：currentRole = userInfo.role（只显示自己的菜单）
+    syncLoginRole() {
+      const VALID = ['admin', 'teacher', 'parent', 'student', 'doctor'];
+      const raw = localStorage.getItem('userInfo');
+
+      if (!raw) {
+        this.userInfo = { username: '管理员', role: 'admin' };
+        this.currentRole = 'admin';
+        return;
+      }
+
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        this.userInfo = { username: '管理员', role: 'admin' };
+        this.currentRole = 'admin';
+        return;
+      }
+
+      const role = VALID.includes(parsed.role) ? parsed.role : 'admin';
+      this.userInfo = parsed;
+      this.currentRole = role;
+    },
     getMenuByRole(role) {
       const allMenus = {
         admin: [
@@ -491,8 +564,16 @@ export default {
     },
     
     handleRoleChange(role) {
-      this.userInfo.role = role;
-      localStorage.setItem('userInfo', JSON.stringify(this.userInfo));
+      // 仅校级管理员能切换角色预览，用于查看不同角色的菜单
+      if (this.userInfo.role !== 'admin') {
+        this.$message.warning('当前身份无权限切换角色');
+        return;
+      }
+      const VALID = ['admin', 'teacher', 'parent', 'student', 'doctor'];
+      if (!VALID.includes(role)) return;
+      // 只修改 currentRole（控制菜单渲染），不改 userInfo.role（真实登录身份）
+      this.currentRole = role;
+      // 切换后跳到首页刷新菜单视觉
       this.$router.push('/dashboard');
     },
     
@@ -562,6 +643,15 @@ export default {
 
 .role-switcher .el-select {
   width: 100%;
+}
+
+.fixed-role-badge {
+  color: #a8c5e0;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: #1f2d3d;
+  border-radius: 6px;
+  text-align: center;
 }
 
 .el-menu-vertical {

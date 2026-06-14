@@ -247,6 +247,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'HealthHomework',
   data() {
@@ -338,6 +340,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     submitHomework() {
       this.$refs.homeworkForm.validate(valid => {
         if (valid) {
@@ -355,6 +363,20 @@ export default {
             pendingCorrection: 0
           };
           this.homeworkList.unshift(newHomework);
+
+          // 通知学生和家长：新的健康作业
+          const userInfo = this.getCurrentUser();
+          const typeMap = { courseware: '健康班会课件', quiz: '健康知识问答', practice: '健康实践活动' };
+          NotificationStore.send({
+            type: 'homework_assigned',
+            title: '📚 新的健康作业',
+            content: `教师 ${userInfo ? userInfo.username : '老师'} 布置了新的${typeMap[this.homeworkForm.type] || '健康作业'}："${this.homeworkForm.title}"，请及时完成。`,
+            fromRole: 'teacher',
+            fromUser: userInfo ? userInfo.username : '老师',
+            toRoles: ['student', 'parent'],
+            link: '/health-homework'
+          });
+
           this.$message.success('作业布置成功！');
           this.resetForm();
         }

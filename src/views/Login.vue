@@ -54,25 +54,34 @@
       </el-form>
       
       <div class="demo-tips">
-        <p><i class="el-icon-info"></i> 演示账号：任意用户名 + 密码 123456</p>
+        <p><i class="el-icon-info"></i> 管理员：admin/admin123 教师：teacher/123456 家长：parent/123456 学生：student/123456 校医：doctor/123456</p>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+// 角色账号密码对照表（username+password+role 三项必须匹配才能登录）
+const ACCOUNTS = {
+  admin:   { username: 'admin',   password: 'admin123', displayName: '校级管理员' },
+  teacher: { username: 'teacher', password: '123456',   displayName: '张老师' },
+  parent:  { username: 'parent',  password: '123456',   displayName: '小明妈妈' },
+  student: { username: 'student', password: '123456',   displayName: '小明同学' },
+  doctor:  { username: 'doctor',  password: '123456',   displayName: '李校医' }
+};
+
 export default {
   name: 'Login',
   data() {
     return {
       loginForm: {
-        username: '超级管理员',
-        password: '123456',
+        username: '',
+        password: '',
         role: 'admin'
       },
       rules: {
         username: [
-          { required: true, message: '请输入用户名', trigger: 'blur' }
+          { required: true, message: '请输入账号', trigger: 'blur' }
         ],
         password: [
           { required: true, message: '请输入密码', trigger: 'blur' }
@@ -91,41 +100,54 @@ export default {
   methods: {
     selectRole(role) {
       this.loginForm.role = role;
-      const roleNames = {
-        admin: '超级管理员',
-        teacher: '张老师',
-        parent: '小明妈妈',
-        student: '小明',
-        doctor: '李校医'
-      };
-      this.loginForm.username = roleNames[role];
+      // 清空账号密码，强制用户重新输入
+      this.loginForm.username = '';
+      this.loginForm.password = '';
     },
-    getPlaceholder(type) {
+    getPlaceholder() {
       const placeholders = {
-        admin: { username: '请输入管理员账号' },
-        teacher: { username: '请输入教师工号' },
-        parent: { username: '请输入家长手机号' },
-        student: { username: '请输入学号' },
-        doctor: { username: '请输入校医账号' }
+        admin: '请输入管理员账号',
+        teacher: '请输入教师工号',
+        parent: '请输入家长手机号',
+        student: '请输入学号',
+        doctor: '请输入校医账号'
       };
-      return placeholders[this.loginForm.role]?.username || '请输入用户名';
+      return placeholders[this.loginForm.role] || '请输入账号';
     },
     handleLogin() {
       this.$refs.loginForm.validate((valid) => {
-        if (valid) {
-          this.loading = true;
-          setTimeout(() => {
-            localStorage.setItem('token', 'demo-token-' + Date.now());
-            localStorage.setItem('userInfo', JSON.stringify({
-              username: this.loginForm.username,
-              role: this.loginForm.role,
-              loginTime: new Date().toISOString()
-            }));
-            this.$message.success('登录成功！欢迎 ' + this.loginForm.username);
+        if (!valid) return;
+
+        this.loading = true;
+        setTimeout(() => {
+          // 1. 角色必须存在于账号表中
+          const roleCfg = ACCOUNTS[this.loginForm.role];
+          if (!roleCfg) {
+            this.$message.error('角色信息异常，请重新选择');
             this.loading = false;
-            this.$router.push('/dashboard');
-          }, 600);
-        }
+            return;
+          }
+
+          // 2. 账号、密码、角色三项必须联合匹配（防止选错角色蒙混登录）
+          const inputUser = String(this.loginForm.username || '').trim();
+          const inputPwd  = String(this.loginForm.password || '');
+          if (inputUser !== roleCfg.username || inputPwd !== roleCfg.password) {
+            this.$message.error('账号、密码或角色不匹配，请核对后重试');
+            this.loading = false;
+            return;
+          }
+
+          // 3. 登录成功，保存身份信息
+          localStorage.setItem('token', 'auth-token-' + Date.now());
+          localStorage.setItem('userInfo', JSON.stringify({
+            username: roleCfg.displayName,
+            role: this.loginForm.role,
+            loginTime: new Date().toISOString()
+          }));
+          this.$message.success('登录成功！欢迎 ' + roleCfg.displayName);
+          this.loading = false;
+          this.$router.push('/dashboard');
+        }, 500);
       });
     }
   }

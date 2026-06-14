@@ -277,6 +277,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'HomeworkCorrect',
   data() {
@@ -406,6 +408,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     filterData() {
       this.loading = true;
       setTimeout(() => {
@@ -446,6 +454,19 @@ export default {
         comment: this.correctionForm.comment,
         correctTime: new Date().toISOString()
       };
+
+      // 通知学生和家长：作业已批改
+      const userInfo = this.getCurrentUser();
+      NotificationStore.send({
+        type: 'homework_correct',
+        title: '✏️ 健康作业已批改',
+        content: `教师 ${userInfo ? userInfo.username : '老师'} 已批改学生 ${this.currentSubmission.studentName} 的作业"${this.currentSubmission.homeworkTitle}"，得分：${this.correctionForm.score}分。`,
+        fromRole: 'teacher',
+        fromUser: userInfo ? userInfo.username : '老师',
+        toRoles: ['student', 'parent'],
+        link: '/homework-correct'
+      });
+
       this.$message.success('批改成功！');
       this.correctDialogVisible = false;
     },

@@ -112,6 +112,8 @@
           <el-radio-button label="pending">待审批</el-radio-button>
           <el-radio-button label="approved">已通过</el-radio-button>
           <el-radio-button label="rejected">已拒绝</el-radio-button>
+          <el-radio-button label="cancelled">已撤销</el-radio-button>
+          <el-radio-button label="registered">教师登记</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -128,14 +130,22 @@
                 {{ typeText(record.type) }}
               </el-tag>
               <span class="leave-date">{{ record.startDate }} 至 {{ record.endDate }}</span>
+              <span v-if="record.studentName" class="leave-student">
+                <i class="el-icon-user"></i> {{ record.studentName }}
+                <span v-if="record.parentName && record.parentName !== '—'">({{ record.parentName }})</span>
+              </span>
             </div>
             <p class="leave-reason">{{ record.reason }}</p>
             <div class="leave-meta">
               <span><i class="el-icon-time"></i> 申请时间：{{ record.applyTime }}</span>
               <span v-if="record.approveTime">
-                <i class="el-icon-check"></i> 审批时间：{{ record.approveTime }}
+                <i class="el-icon-check"></i> 审批：{{ record.approveTime }}
+                <span v-if="record.approver">（{{ record.approver }}）</span>
               </span>
             </div>
+            <p v-if="record.approveRemark" class="leave-remark">
+              <i class="el-icon-document"></i> 审批意见：{{ record.approveRemark }}
+            </p>
           </div>
           <div class="leave-actions">
             <el-button 
@@ -176,6 +186,14 @@
       width="500px">
       <div v-if="currentRecord" class="detail-content">
         <div class="detail-row">
+          <span class="detail-label">学生姓名：</span>
+          <span>{{ currentRecord.studentName || '—' }}</span>
+        </div>
+        <div v-if="currentRecord.parentName && currentRecord.parentName !== '—'" class="detail-row">
+          <span class="detail-label">申请人：</span>
+          <span>{{ currentRecord.parentName }}</span>
+        </div>
+        <div class="detail-row">
           <span class="detail-label">请假类型：</span>
           <el-tag :type="typeTagType(currentRecord.type)">
             {{ typeText(currentRecord.type) }}
@@ -199,6 +217,14 @@
           <span class="detail-label">请假原因：</span>
           <p class="detail-reason">{{ currentRecord.reason }}</p>
         </div>
+        <div v-if="currentRecord.approveTime" class="detail-row">
+          <span class="detail-label">审批时间：</span>
+          <span>{{ currentRecord.approveTime }}</span>
+        </div>
+        <div v-if="currentRecord.approver" class="detail-row">
+          <span class="detail-label">审批人：</span>
+          <span>{{ currentRecord.approver }}</span>
+        </div>
         <div v-if="currentRecord.approveRemark" class="detail-row">
           <span class="detail-label">审批备注：</span>
           <p class="detail-remark">{{ currentRecord.approveRemark }}</p>
@@ -209,6 +235,8 @@
 </template>
 
 <script>
+import { LeaveStore } from '@/permission';
+
 export default {
   name: 'LeaveRequest',
   data() {
@@ -235,43 +263,14 @@ export default {
           return time.getTime() < Date.now() - 8.64e7;
         }
       },
-      leaveRecords: [
-        {
-          id: 1,
-          type: 'sick',
-          startDate: '2024-06-03',
-          endDate: '2024-06-03',
-          timeSlots: ['whole'],
-          reason: '感冒发烧，体温38.5度，需要在家休息',
-          status: 'approved',
-          applyTime: '2024-06-02 20:30',
-          approveTime: '2024-06-02 21:00',
-          approveRemark: '已批准，注意多喝水，早日康复'
-        },
-        {
-          id: 2,
-          type: 'personal',
-          startDate: '2024-05-20',
-          endDate: '2024-05-20',
-          timeSlots: ['morning'],
-          reason: '家中有事，需要请假半天',
-          status: 'pending',
-          applyTime: '2024-05-19 18:00'
-        },
-        {
-          id: 3,
-          type: 'sick',
-          startDate: '2024-04-15',
-          endDate: '2024-04-16',
-          timeSlots: ['whole'],
-          reason: '急性肠胃炎',
-          status: 'rejected',
-          applyTime: '2024-04-14 19:00',
-          approveTime: '2024-04-14 20:00',
-          approveRemark: '请提供医院证明后重新申请'
-        }
-      ]
+      leaveRecords: []  // 从共享存储加载
     };
+  },
+  mounted() {
+    this.loadRecords();
+  },
+  activated() {
+    this.loadRecords();
   },
   computed: {
     filteredRecords() {
@@ -282,28 +281,48 @@ export default {
     }
   },
   methods: {
+    // 从共享存储加载所有请假申请（家长可以看到自己孩子的）
+    loadRecords() {
+      const all = LeaveStore.getAll();
+      // 家长看到所有学生的请假记录（家长端只看自己孩子，这里简化：显示所有）
+      // 如果需要严格过滤，可以在 userInfo 中存学生信息
+      this.leaveRecords = all;
+    },
+    // 获取当前家长和学生名称
+    getUserInfo() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          return {
+            parentName: obj.username || '小明妈妈',
+            studentName: '小明' // 默认学生，实际系统中可根据家长账号绑定
+          };
+        }
+      } catch (e) { /* ignore */ }
+      return { parentName: '家长', studentName: '小明' };
+    },
     // 提交请假申请
     submitLeave() {
       this.$refs.leaveForm.validate(valid => {
-        if (valid) {
-          this.submitting = true;
-          setTimeout(() => {
-            const newRecord = {
-              id: Date.now(),
-              type: this.leaveForm.type,
-              startDate: this.formatDate(this.leaveForm.dateRange[0]),
-              endDate: this.formatDate(this.leaveForm.dateRange[1]),
-              timeSlots: this.leaveForm.timeSlots,
-              reason: this.leaveForm.reason,
-              status: 'pending',
-              applyTime: this.formatDateTime(new Date())
-            };
-            this.leaveRecords.unshift(newRecord);
-            this.submitting = false;
-            this.$message.success('请假申请提交成功！');
-            this.resetForm();
-          }, 1000);
-        }
+        if (!valid) return;
+        this.submitting = true;
+        setTimeout(() => {
+          const userInfo = this.getUserInfo();
+          LeaveStore.submit({
+            studentName: userInfo.studentName,
+            parentName: userInfo.parentName,
+            type: this.leaveForm.type,
+            startDate: this.formatDate(this.leaveForm.dateRange[0]),
+            endDate: this.formatDate(this.leaveForm.dateRange[1]),
+            timeSlots: this.leaveForm.timeSlots,
+            reason: this.leaveForm.reason
+          });
+          this.loadRecords();  // 提交后重新加载
+          this.submitting = false;
+          this.$message.success('请假申请提交成功！老师会尽快审批。');
+          this.resetForm();
+        }, 600);
       });
     },
     // 重置表单
@@ -320,11 +339,9 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        const index = this.leaveRecords.findIndex(r => r.id === id);
-        if (index > -1) {
-          this.leaveRecords.splice(index, 1);
-          this.$message.success('已撤销申请');
-        }
+        LeaveStore.cancel(id);
+        this.loadRecords();
+        this.$message.success('已撤销申请');
       }).catch(() => {});
     },
     // 查看详情
@@ -351,7 +368,9 @@ export default {
       const map = {
         pending: '待审批',
         approved: '已通过',
-        rejected: '已拒绝'
+        rejected: '已拒绝',
+        cancelled: '已撤销',
+        registered: '已登记'
       };
       return map[status] || status;
     },
@@ -360,7 +379,9 @@ export default {
       const map = {
         pending: 'el-icon-time',
         approved: 'el-icon-check',
-        rejected: 'el-icon-close'
+        rejected: 'el-icon-close',
+        cancelled: 'el-icon-circle-close',
+        registered: 'el-icon-document'
       };
       return map[status] || 'el-icon-question';
     },
@@ -369,36 +390,27 @@ export default {
       const map = {
         pending: 'warning',
         approved: 'success',
-        rejected: 'danger'
+        rejected: 'danger',
+        cancelled: 'info',
+        registered: 'primary'
       };
       return map[status] || 'info';
     },
     // 请假类型文本
     typeText(type) {
-      const map = {
-        sick: '病假',
-        personal: '事假',
-        other: '其他'
-      };
+      const map = { sick: '病假', personal: '事假', other: '其他' };
       return map[type] || type;
     },
     // 请假类型标签类型
     typeTagType(type) {
-      const map = {
-        sick: 'danger',
-        personal: 'primary',
-        other: 'info'
-      };
+      const map = { sick: 'danger', personal: 'primary', other: 'info' };
       return map[type] || 'info';
     },
     // 时段文本
     timeSlotsText(slots) {
       if (!slots || slots.length === 0) return '未指定';
       if (slots.includes('whole')) return '全天';
-      const map = {
-        morning: '上午',
-        afternoon: '下午'
-      };
+      const map = { morning: '上午', afternoon: '下午' };
       return slots.map(s => map[s] || s).join('、');
     }
   }
@@ -544,6 +556,18 @@ export default {
   border-left-color: #f56c6c;
 }
 
+.leave-status.cancelled {
+  background: #f4f4f5;
+  color: #909399;
+  border-left-color: #909399;
+}
+
+.leave-status.registered {
+  background: #ecf5ff;
+  color: #409EFF;
+  border-left-color: #409EFF;
+}
+
 .leave-status i {
   font-size: 24px;
   display: block;
@@ -566,10 +590,29 @@ export default {
   font-size: 14px;
 }
 
+.leave-student {
+  color: #909399;
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.leave-student i {
+  margin-right: 4px;
+}
+
 .leave-reason {
   color: #333;
   margin: 10px 0;
   line-height: 1.6;
+}
+
+.leave-remark {
+  color: #67c23a;
+  background: #f0f9eb;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0 0 0;
+  font-size: 13px;
 }
 
 .leave-meta {

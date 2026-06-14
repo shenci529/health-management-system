@@ -327,6 +327,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'PushMessage',
   data() {
@@ -433,6 +435,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     getCategoryName(category) {
       const map = { health: '健康通知', activity: '活动通知', warning: '预警通知', checkup: '体检通知', other: '其他' };
       return map[category] || category;
@@ -531,6 +539,24 @@ export default {
     sendPush() {
       this.$refs.pushForm.validate((valid) => {
         if (valid) {
+          const userInfo = this.getCurrentUser();
+          // 根据推送对象确定通知目标角色
+          const targetType = this.pushForm.targetType;
+          let toRoles = ['all'];
+          if (targetType === 'role') {
+            toRoles = ['parent', 'teacher', 'student'];
+          } else if (targetType === 'grade' || targetType === 'class') {
+            toRoles = ['parent', 'student'];
+          }
+          NotificationStore.send({
+            type: 'push_message',
+            title: '📢 ' + (this.pushForm.title || '推送消息'),
+            content: `${userInfo ? userInfo.username : '管理员'}发送了推送消息：${this.pushForm.content.substring(0, 80)}${this.pushForm.content.length > 80 ? '...' : ''}`,
+            fromRole: 'admin',
+            fromUser: userInfo ? userInfo.username : '管理员',
+            toRoles: toRoles,
+            link: '/notification-center'
+          });
           this.$message.success('消息推送已发送，预计接收 ' + this.estimatedReceivers + ' 人');
           this.resetPushForm();
         }

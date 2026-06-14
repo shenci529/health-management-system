@@ -120,6 +120,43 @@
       </el-form>
     </div>
 
+    <!-- 家长请假申请 - 待审批 -->
+    <div class="pending-section" v-if="pendingCount > 0">
+      <div class="section-header">
+        <h2>
+          <i class="el-icon-bell"></i>
+          待审批的请假申请
+          <el-tag type="warning" size="medium">{{ pendingCount }} 条待处理</el-tag>
+        </h2>
+      </div>
+      <div class="pending-list">
+        <div v-for="item in pendingRequests" :key="item.id" class="pending-item">
+          <div class="pending-info">
+            <div class="pending-main">
+              <el-tag :type="getTypeTag(item.type)" size="small">
+                {{ getTypeText(item.type) }}
+              </el-tag>
+              <span class="pending-name">{{ item.studentName }}</span>
+              <span v-if="item.parentName" class="pending-parent">({{ item.parentName }})</span>
+              <span class="pending-date">{{ item.startDate }}{{ item.endDate && item.endDate !== item.startDate ? ' 至 ' + item.endDate : '' }}</span>
+            </div>
+            <div class="pending-reason">{{ item.reason }}</div>
+            <div class="pending-meta">
+              <span><i class="el-icon-time"></i> 申请时间：{{ item.applyTime }}</span>
+            </div>
+          </div>
+          <div class="pending-actions">
+            <el-button type="success" size="small" icon="el-icon-check" @click="openApproveDialog(item)">
+              批准
+            </el-button>
+            <el-button type="danger" size="small" icon="el-icon-close" @click="openApproveDialog(item)">
+              拒绝
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 缺勤记录列表 -->
     <div class="record-section">
       <div class="section-header">
@@ -141,25 +178,42 @@
             <el-option label="事假" value="personal"></el-option>
             <el-option label="其他" value="other"></el-option>
           </el-select>
+          <el-select v-model="filterStatus" placeholder="状态" size="small" style="width: 120px; margin-right: 10px;">
+            <el-option label="全部状态" value=""></el-option>
+            <el-option label="已通过" value="approved"></el-option>
+            <el-option label="已拒绝" value="rejected"></el-option>
+            <el-option label="已撤销" value="cancelled"></el-option>
+            <el-option label="已登记" value="registered"></el-option>
+            <el-option label="待审批" value="pending"></el-option>
+          </el-select>
           <el-button type="primary" size="small" icon="el-icon-search" @click="filterRecords">筛选</el-button>
+          <el-button size="small" icon="el-icon-refresh" @click="loadRecords">刷新</el-button>
         </div>
       </div>
 
       <el-table :data="filteredRecords" style="width: 100%" border>
-        <el-table-column prop="studentName" label="学生姓名" width="120">
+        <el-table-column prop="studentName" label="学生姓名" width="120"></el-table-column>
+        <el-table-column label="缺勤日期" width="160">
+          <template slot-scope="scope">{{ getDateRange(scope.row) }}</template>
+        </el-table-column>
+        <el-table-column label="缺勤类型" width="100">
           <template slot-scope="scope">
-            <span class="student-name">{{ scope.row.studentName }}</span>
+            <el-tag :type="getTypeTag(scope.row.type || scope.row.absenceType)" size="small">
+              {{ getTypeText(scope.row.type || scope.row.absenceType) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="absenceDate" label="缺勤日期" width="120">
+        <el-table-column label="来源" width="110">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.absenceDate) }}
+            <el-tag :type="scope.row.source === '家长申请' ? 'success' : 'primary'" size="small">
+              {{ getSourceText(scope.row) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="absenceType" label="缺勤类型" width="100">
+        <el-table-column label="状态" width="100">
           <template slot-scope="scope">
-            <el-tag :type="getTypeTag(scope.row.absenceType)" size="small">
-              {{ getTypeText(scope.row.absenceType) }}
+            <el-tag :type="getStatusTag(scope.row.status)" size="small">
+              {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -170,21 +224,15 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="healthStatus" label="健康状况" min-width="200">
+        <el-table-column prop="approver" label="审批人" width="100"></el-table-column>
+        <el-table-column label="申请/登记时间" width="160">
           <template slot-scope="scope">
-            <el-tooltip :content="scope.row.healthStatus" placement="top">
-              <span class="ellipsis">{{ scope.row.healthStatus || '-' }}</span>
-            </el-tooltip>
+            {{ formatDateTime(scope.row.applyTime || scope.row.registerTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="registerTime" label="登记时间" width="150">
+        <el-table-column label="操作" width="180" fixed="right">
           <template slot-scope="scope">
-            {{ formatDateTime(scope.row.registerTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template slot-scope="scope">
-            <el-button size="mini" type="primary" icon="el-icon-edit" @click="editRecord(scope.row)">编辑</el-button>
+            <el-button v-if="scope.row.status === 'pending'" size="mini" type="success" icon="el-icon-check" @click="openApproveDialog(scope.row)">审批</el-button>
             <el-button size="mini" type="danger" icon="el-icon-delete" @click="deleteRecord(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -201,6 +249,49 @@
         </el-pagination>
       </div>
     </div>
+
+    <!-- 审批弹窗 -->
+    <el-dialog
+      title="审批请假申请"
+      :visible.sync="approveDialogVisible"
+      width="500px"
+      @closed="approveRecord = null; approveRemark = ''">
+      <div v-if="approveRecord" class="approve-form">
+        <el-form label-width="100px">
+          <el-form-item label="学生姓名">
+            <span>{{ approveRecord.studentName }}</span>
+          </el-form-item>
+          <el-form-item label="申请人">
+            <span>{{ approveRecord.parentName || '家长' }}</span>
+          </el-form-item>
+          <el-form-item label="请假类型">
+            <el-tag :type="getTypeTag(approveRecord.type)">{{ getTypeText(approveRecord.type) }}</el-tag>
+          </el-form-item>
+          <el-form-item label="请假日期">
+            <span>{{ approveRecord.startDate }}{{ approveRecord.endDate && approveRecord.endDate !== approveRecord.startDate ? ' 至 ' + approveRecord.endDate : '' }}</span>
+          </el-form-item>
+          <el-form-item label="请假原因">
+            <div class="reason-text">{{ approveRecord.reason }}</div>
+          </el-form-item>
+          <el-form-item label="申请时间">
+            <span>{{ approveRecord.applyTime }}</span>
+          </el-form-item>
+          <el-form-item label="审批备注">
+            <el-input
+              type="textarea"
+              :rows="3"
+              v-model="approveRemark"
+              placeholder="请输入审批意见（可选）">
+            </el-input>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div slot="footer">
+        <el-button @click="approveDialogVisible = false">取消</el-button>
+        <el-button type="danger" icon="el-icon-close" @click="rejectRequest">拒绝</el-button>
+        <el-button type="primary" icon="el-icon-check" @click="approveRequest">批准</el-button>
+      </div>
+    </el-dialog>
 
     <!-- 缺勤统计图表 -->
     <div class="chart-section">
@@ -255,6 +346,8 @@
 </template>
 
 <script>
+import { LeaveStore } from '@/permission';
+
 export default {
   name: 'AbsenceRegister',
   data() {
@@ -274,82 +367,86 @@ export default {
         reason: [{ required: true, message: '请填写缺勤原因', trigger: 'blur' }]
       },
       studentList: [
-        { id: 1, name: '张三' },
+        { id: 1, name: '小明' },
         { id: 2, name: '李四' },
         { id: 3, name: '王五' },
         { id: 4, name: '赵六' },
         { id: 5, name: '钱七' }
       ],
-      absenceRecords: [
-        {
-          id: 1,
-          studentId: 1,
-          studentName: '张三',
-          absenceDate: '2024-01-15',
-          absenceType: 'sick',
-          reason: '感冒发烧，体温38.5度',
-          healthStatus: '已就医，正在服药治疗',
-          registerTime: '2024-01-15 08:30:00'
-        },
-        {
-          id: 2,
-          studentId: 2,
-          studentName: '李四',
-          absenceDate: '2024-01-15',
-          absenceType: 'personal',
-          reason: '家中有事，需请假一天',
-          healthStatus: '身体健康',
-          registerTime: '2024-01-15 08:00:00'
-        },
-        {
-          id: 3,
-          studentId: 3,
-          studentName: '王五',
-          absenceDate: '2024-01-14',
-          absenceType: 'sick',
-          reason: '腹泻，肠胃不适',
-          healthStatus: '已服药，症状缓解',
-          registerTime: '2024-01-14 07:45:00'
-        }
-      ],
+      // 统一从 LeaveStore 加载，不再使用本地 mock
+      allRecords: [],
       filterDate: '',
       filterType: '',
+      filterStatus: '',
       currentPage: 1,
       pageSize: 10,
       chartPeriod: 'week',
-      trendData: [
-        { date: '周一', count: 2 },
-        { date: '周二', count: 1 },
-        { date: '周三', count: 3 },
-        { date: '周四', count: 0 },
-        { date: '周五', count: 2 },
-        { date: '周六', count: 0 },
-        { date: '周日', count: 1 }
-      ]
+      // 审批弹窗相关
+      approveDialogVisible: false,
+      approveRecord: null,
+      approveRemark: '',
+      // 审批用户名（教师）
+      approverName: '老师'
     };
   },
+  mounted() {
+    this.loadRecords();
+  },
+  activated() {
+    this.loadRecords();
+  },
   computed: {
+    // 家长提交的待审批请假申请
+    pendingRequests() {
+      return this.allRecords.filter(r => r.status === 'pending');
+    },
+    // 待审批的数量
+    pendingCount() {
+      return this.pendingRequests.length;
+    },
+    // 今日缺勤数（基于已通过/已登记的记录）
     todayAbsenceCount() {
       const today = new Date().toISOString().split('T')[0];
-      return this.absenceRecords.filter(r => r.absenceDate === today).length;
+      return this.allRecords.filter(r =>
+        (r.status === 'approved' || r.status === 'registered') &&
+        (r.startDate === today || r.absenceDate === today)
+      ).length;
     },
     sickLeaveCount() {
-      return this.absenceRecords.filter(r => r.absenceType === 'sick').length;
+      return this.allRecords.filter(r =>
+        (r.status === 'approved' || r.status === 'registered') &&
+        (r.type === 'sick' || r.absenceType === 'sick')
+      ).length;
     },
     personalLeaveCount() {
-      return this.absenceRecords.filter(r => r.absenceType === 'personal').length;
+      return this.allRecords.filter(r =>
+        (r.status === 'approved' || r.status === 'registered') &&
+        (r.type === 'personal' || r.absenceType === 'personal')
+      ).length;
     },
     otherLeaveCount() {
-      return this.absenceRecords.filter(r => r.absenceType === 'other').length;
+      return this.allRecords.filter(r =>
+        (r.status === 'approved' || r.status === 'registered') &&
+        (r.type === 'other' || r.absenceType === 'other')
+      ).length;
     },
+    // 筛选后的全部记录（缺勤记录表格）
     filteredRecords() {
-      let records = this.absenceRecords;
+      let records = this.allRecords;
       if (this.filterDate) {
         const dateStr = this.formatDate(this.filterDate);
-        records = records.filter(r => r.absenceDate === dateStr);
+        records = records.filter(r =>
+          r.startDate === dateStr || r.absenceDate === dateStr ||
+          r.endDate === dateStr
+        );
       }
       if (this.filterType) {
-        records = records.filter(r => r.absenceType === this.filterType);
+        records = records.filter(r =>
+          r.type === this.filterType || r.absenceType === this.filterType
+        );
+      }
+      if (this.filterStatus) {
+        records = records.filter(r => r.status === this.filterStatus);
       }
       return records;
     },
@@ -358,24 +455,41 @@ export default {
     }
   },
   methods: {
+    // 从共享存储加载
+    loadRecords() {
+      this.allRecords = LeaveStore.getAll();
+    },
+    // 获取当前教师名
+    getApproverName() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          return obj.username || '老师';
+        }
+      } catch (e) { /* ignore */ }
+      return '老师';
+    },
+    // 教师手动登记缺勤
     submitAbsence() {
       this.$refs.absenceForm.validate(valid => {
-        if (valid) {
-          const student = this.studentList.find(s => s.id === this.absenceForm.studentId);
-          const newRecord = {
-            id: Date.now(),
-            studentId: this.absenceForm.studentId,
-            studentName: student ? student.name : '',
-            absenceDate: this.formatDate(this.absenceForm.absenceDate),
-            absenceType: this.absenceForm.absenceType,
-            reason: this.absenceForm.reason,
-            healthStatus: this.absenceForm.healthStatus,
-            registerTime: new Date().toISOString()
-          };
-          this.absenceRecords.unshift(newRecord);
-          this.$message.success('缺勤登记成功！');
-          this.resetForm();
+        if (!valid) return;
+        const student = this.studentList.find(s => s.id === this.absenceForm.studentId);
+        if (!student) {
+          this.$message.error('请选择学生');
+          return;
         }
+        LeaveStore.registerByTeacher({
+          studentName: student.name,
+          absenceDate: this.formatDate(this.absenceForm.absenceDate),
+          absenceType: this.absenceForm.absenceType,
+          reason: this.absenceForm.reason,
+          healthStatus: this.absenceForm.healthStatus,
+          approver: this.getApproverName()
+        });
+        this.loadRecords();
+        this.$message.success('缺勤登记成功！');
+        this.resetForm();
       });
     },
     resetForm() {
@@ -385,22 +499,60 @@ export default {
     filterRecords() {
       this.currentPage = 1;
     },
-    editRecord(row) {
-      this.absenceForm = { ...row };
-      this.absenceForm.absenceDate = new Date(row.absenceDate);
+    // 打开审批弹窗
+    openApproveDialog(record) {
+      this.approveRecord = record;
+      this.approveRemark = '';
+      this.approveDialogVisible = true;
     },
+    // 批准请假
+    approveRequest() {
+      if (!this.approveRecord) return;
+      LeaveStore.approve(
+        this.approveRecord.id,
+        'approve',
+        this.approveRemark || '已批准',
+        this.getApproverName()
+      );
+      this.approveDialogVisible = false;
+      this.loadRecords();
+      this.$message.success('已批准请假申请');
+    },
+    // 拒绝请假
+    rejectRequest() {
+      if (!this.approveRecord) return;
+      LeaveStore.approve(
+        this.approveRecord.id,
+        'reject',
+        this.approveRemark || '已拒绝',
+        this.getApproverName()
+      );
+      this.approveDialogVisible = false;
+      this.loadRecords();
+      this.$message.success('已拒绝请假申请');
+    },
+    // 删除记录
     deleteRecord(row) {
       this.$confirm('确定删除该条记录吗？', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        const index = this.absenceRecords.findIndex(r => r.id === row.id);
-        if (index > -1) {
-          this.absenceRecords.splice(index, 1);
-          this.$message.success('删除成功！');
-        }
-      });
+        const list = LeaveStore.getAll().filter(r => r.id !== row.id);
+        LeaveStore.saveAll(list);
+        this.loadRecords();
+        this.$message.success('删除成功！');
+      }).catch(() => {});
+    },
+    editRecord(row) {
+      this.absenceForm = {
+        studentId: row.studentId || '',
+        studentName: row.studentName || '',
+        absenceDate: row.startDate || row.absenceDate ? new Date(row.startDate || row.absenceDate) : new Date(),
+        absenceType: row.type || row.absenceType || '',
+        reason: row.reason || '',
+        healthStatus: row.healthStatus || ''
+      };
     },
     handleCurrentChange(val) {
       this.currentPage = val;
@@ -412,24 +564,51 @@ export default {
     },
     formatDateTime(datetime) {
       if (!datetime) return '';
+      if (typeof datetime === 'string' && datetime.includes(' ') && !datetime.includes('T')) {
+        return datetime;
+      }
       const d = new Date(datetime);
       return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     },
     getTypeTag(type) {
-      const typeMap = {
-        sick: 'danger',
-        personal: 'warning',
-        other: 'info'
-      };
+      const typeMap = { sick: 'danger', personal: 'warning', other: 'info' };
       return typeMap[type] || 'info';
     },
     getTypeText(type) {
-      const typeMap = {
-        sick: '病假',
-        personal: '事假',
-        other: '其他'
-      };
+      const typeMap = { sick: '病假', personal: '事假', other: '其他' };
       return typeMap[type] || type;
+    },
+    getStatusTag(status) {
+      const statusMap = {
+        pending: 'warning',
+        approved: 'success',
+        rejected: 'danger',
+        cancelled: 'info',
+        registered: 'primary'
+      };
+      return statusMap[status] || 'info';
+    },
+    getStatusText(status) {
+      const statusMap = {
+        pending: '待审批',
+        approved: '已通过',
+        rejected: '已拒绝',
+        cancelled: '已撤销',
+        registered: '已登记'
+      };
+      return statusMap[status] || status;
+    },
+    getSourceText(record) {
+      if (record.source === '家长申请') return '家长申请';
+      if (record.source === '教师登记') return '教师登记';
+      return '记录';
+    },
+    getDateRange(record) {
+      const start = record.startDate || record.absenceDate || '';
+      const end = record.endDate || '';
+      if (!start) return '';
+      if (end && end !== start) return `${start} 至 ${end}`;
+      return start;
     }
   }
 };
@@ -692,5 +871,85 @@ export default {
     width: 100%;
     flex-wrap: wrap;
   }
+}
+
+/* 待审批申请区块 */
+.pending-section {
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.pending-list {
+  margin-top: 15px;
+}
+
+.pending-item {
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px 20px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 4px solid #E6A23C;
+}
+
+.pending-info {
+  flex: 1;
+}
+
+.pending-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pending-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.pending-parent {
+  color: #909399;
+  font-size: 13px;
+}
+
+.pending-date {
+  color: #666;
+  font-size: 14px;
+  margin-left: 10px;
+}
+
+.pending-reason {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.pending-meta {
+  color: #999;
+  font-size: 12px;
+}
+
+.pending-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 审批弹窗 */
+.approve-form {
+  margin-top: 10px;
+}
+
+.reason-text {
+  background: #f5f7fa;
+  padding: 10px;
+  border-radius: 5px;
+  color: #606266;
+  line-height: 1.6;
 }
 </style>

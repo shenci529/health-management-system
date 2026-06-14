@@ -89,39 +89,39 @@
         v-for="notification in filteredNotifications" 
         :key="notification.id" 
         class="notification-item"
-        :class="{ unread: !notification.isRead, read: notification.isRead }"
+        :class="{ unread: !notification.read, read: notification.read }"
         @click="viewNotification(notification)">
         <div class="notification-status">
-          <div class="status-dot" :class="{ unread: !notification.isRead }"></div>
+          <div class="status-dot" :class="{ unread: !notification.read }"></div>
         </div>
-        <div class="notification-icon" :class="notification.type">
+        <div class="notification-icon" :class="typeBgClass(notification.type)">
           <i :class="typeIcon(notification.type)"></i>
         </div>
         <div class="notification-content">
           <div class="notification-header">
             <span class="notification-title">{{ notification.title }}</span>
             <div class="notification-tags">
-              <el-tag size="mini" :type="scopeTagType(notification.scope)">
-                {{ scopeText(notification.scope) }}
+              <el-tag size="mini" :type="scopeTagType(notification)">
+                {{ scopeText(notification) }}
               </el-tag>
-              <el-tag size="mini" :type="priorityTagType(notification.priority)">
-                {{ priorityText(notification.priority) }}
+              <el-tag size="mini" :type="priorityTagType(notification)">
+                {{ priorityText(notification) }}
               </el-tag>
             </div>
           </div>
-          <p class="notification-summary">{{ notification.summary }}</p>
+          <p class="notification-summary">{{ notification.content }}</p>
           <div class="notification-meta">
             <span class="notification-time">
-              <i class="el-icon-time"></i> {{ notification.time }}
+              <i class="el-icon-time"></i> {{ notification.timestamp }}
             </span>
             <span class="notification-sender">
-              <i class="el-icon-user"></i> {{ notification.sender }}
+              <i class="el-icon-user"></i> {{ senderText(notification) }}
             </span>
           </div>
         </div>
         <div class="notification-actions" @click.stop>
           <el-button 
-            v-if="!notification.isRead" 
+            v-if="!notification.read" 
             type="text" 
             @click="markAsRead(notification.id)">
             标记已读
@@ -159,30 +159,25 @@
       <div v-if="currentNotification" class="notification-detail">
         <div class="detail-header">
           <div class="detail-tags">
-            <el-tag :type="scopeTagType(currentNotification.scope)">
-              {{ scopeText(currentNotification.scope) }}
+            <el-tag :type="scopeTagType(currentNotification)">
+              {{ scopeText(currentNotification) }}
             </el-tag>
-            <el-tag :type="priorityTagType(currentNotification.priority)">
-              {{ priorityText(currentNotification.priority) }}
+            <el-tag :type="priorityTagType(currentNotification)">
+              {{ priorityText(currentNotification) }}
             </el-tag>
           </div>
           <div class="detail-meta">
-            <span><i class="el-icon-time"></i> {{ currentNotification.time }}</span>
-            <span><i class="el-icon-user"></i> {{ currentNotification.sender }}</span>
+            <span><i class="el-icon-time"></i> {{ currentNotification.timestamp }}</span>
+            <span><i class="el-icon-user"></i> {{ senderText(currentNotification) }}</span>
           </div>
         </div>
         <div class="detail-content">
           <p>{{ currentNotification.content }}</p>
         </div>
-        <div v-if="currentNotification.attachments" class="detail-attachments">
-          <h4><i class="el-icon-paperclip"></i> 附件</h4>
-          <div class="attachment-list">
-            <div v-for="(file, index) in currentNotification.attachments" :key="index" class="attachment-item">
-              <i class="el-icon-document"></i>
-              <span>{{ file.name }}</span>
-              <el-button type="text" size="small">下载</el-button>
-            </div>
-          </div>
+        <div v-if="currentNotification.link" class="detail-link">
+          <el-button type="primary" size="small" @click="goToLink(currentNotification.link)">
+            前往查看
+          </el-button>
         </div>
       </div>
     </el-dialog>
@@ -190,6 +185,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'NotificationCenter',
   data() {
@@ -197,174 +194,124 @@ export default {
       filterType: 'all',
       filterScope: 'all',
       detailDialogVisible: false,
-      currentNotification: null,
-      notifications: [
-        {
-          id: 1,
-          title: '关于本周五家长会的通知',
-          summary: '本周五下午3点召开家长会，请各位家长准时参加，地点在三年级二班教室...',
-          content: '各位家长：\n\n本周五（6月7日）下午3点将召开家长会，主要内容包括：\n\n1. 本学期学习情况总结\n2. 暑假安排说明\n3. 下学期教学计划\n\n地点：三年级二班教室\n时间：下午3:00-5:00\n\n请各位家长准时参加，如有特殊情况请提前告知班主任。',
-          type: 'meeting',
-          scope: 'class',
-          priority: 'high',
-          sender: '王老师',
-          time: '2024-06-05 09:30',
-          isRead: false
-        },
-        {
-          id: 2,
-          title: '端午节放假安排',
-          summary: '根据国家法定节假日安排，端午节放假时间为6月8日至6月10日，共3天...',
-          content: '全校师生：\n\n根据国家法定节假日安排，2024年端午节放假安排如下：\n\n放假时间：6月8日（周六）至6月10日（周一），共3天\n返校时间：6月11日（周二）正常上课\n\n注意事项：\n1. 请家长做好孩子的假期安全监管\n2. 注意饮食卫生，预防疾病\n3. 合理安排作息时间\n\n祝大家端午节安康！',
-          type: 'holiday',
-          scope: 'school',
-          priority: 'normal',
-          sender: '教务处',
-          time: '2024-06-04 14:00',
-          isRead: false
-        },
-        {
-          id: 3,
-          title: '学生健康体检通知',
-          summary: '学校将于下周二组织全体学生进行健康体检，请家长配合做好相关准备...',
-          content: '各位家长：\n\n学校定于6月11日（周二）组织全体学生进行健康体检，具体安排如下：\n\n体检项目：\n- 身高体重测量\n- 视力检查\n- 口腔检查\n- 心肺听诊\n\n注意事项：\n1. 请确保孩子当天早餐正常进食\n2. 穿着宽松舒适的衣物\n3. 如有特殊情况请提前告知班主任\n\n谢谢配合！',
-          type: 'health',
-          scope: 'school',
-          priority: 'high',
-          sender: '校医室',
-          time: '2024-06-03 10:00',
-          isRead: true
-        },
-        {
-          id: 4,
-          title: '数学竞赛获奖喜报',
-          summary: '恭喜李明同学在市级数学竞赛中获得一等奖！',
-          content: '热烈祝贺！\n\n我校三年级二班李明同学在2024年市级小学生数学竞赛中表现优异，荣获一等奖！\n\n这是李明同学刻苦学习的结果，也是老师辛勤教导的成果。希望全体同学以李明为榜样，努力学习，争取更大进步！\n\n特此报喜！',
-          type: 'achievement',
-          scope: 'class',
-          priority: 'normal',
-          sender: '教务处',
-          time: '2024-06-02 16:30',
-          isRead: true
-        },
-        {
-          id: 5,
-          title: '紧急：暴雨天气安全提醒',
-          summary: '根据气象部门预报，今晚将有暴雨，请家长注意接送孩子安全...',
-          content: '紧急通知：\n\n根据市气象局预报，今晚至明天上午我市将有暴雨，局部大暴雨。\n\n请家长注意：\n1. 放学时请提前到校接孩子\n2. 注意交通安全，减速慢行\n3. 如遇特殊情况，学校将启动应急预案\n\n请大家务必注意安全！',
-          type: 'emergency',
-          scope: 'school',
-          priority: 'urgent',
-          sender: '校长办公室',
-          time: '2024-06-01 15:00',
-          isRead: true
-        },
-        {
-          id: 6,
-          title: '班级活动：亲子运动会报名',
-          summary: '本周六将举行班级亲子运动会，欢迎家长和孩子一同参加...',
-          content: '亲爱的家长：\n\n为了增进亲子关系，促进家校互动，我们将于本周六（6月8日）上午举行班级亲子运动会。\n\n活动时间：上午9:00-11:30\n活动地点：学校操场\n\n活动项目：\n1. 亲子接力赛\n2. 家庭拔河\n3. 趣味游戏\n\n请有意向参加的家庭在周四前报名，期待您的参与！',
-          type: 'activity',
-          scope: 'class',
-          priority: 'normal',
-          sender: '家委会',
-          time: '2024-05-30 20:00',
-          isRead: true
-        }
-      ]
+      currentNotification: null
     };
   },
   computed: {
+    // 从 NotificationStore 读取当前角色通知
+    allNotifications() {
+      const userInfo = this.getCurrentUser();
+      const role = userInfo ? userInfo.role : '';
+      return NotificationStore.getForRole(role);
+    },
     totalCount() {
-      return this.notifications.length;
+      return this.allNotifications.length;
     },
     unreadCount() {
-      return this.notifications.filter(n => !n.isRead).length;
+      return this.allNotifications.filter(n => !n.read).length;
     },
     classCount() {
-      return this.notifications.filter(n => n.scope === 'class').length;
+      return this.allNotifications.filter(n => n.toRoles.includes('teacher') || n.toRoles.includes('parent')).length;
     },
     schoolCount() {
-      return this.notifications.filter(n => n.scope === 'school').length;
+      return this.allNotifications.filter(n => n.toRoles.includes('all') || n.toRoles.includes('admin')).length;
     },
     filteredNotifications() {
-      let result = this.notifications;
-      
-      // 按阅读状态筛选
+      let result = this.allNotifications;
       if (this.filterType === 'unread') {
-        result = result.filter(n => !n.isRead);
+        result = result.filter(n => !n.read);
       } else if (this.filterType === 'read') {
-        result = result.filter(n => n.isRead);
+        result = result.filter(n => n.read);
       }
-      
-      // 按范围筛选
       if (this.filterScope !== 'all') {
-        result = result.filter(n => n.scope === this.filterScope);
+        if (this.filterScope === 'class') {
+          result = result.filter(n => !n.toRoles.includes('all'));
+        } else if (this.filterScope === 'school') {
+          result = result.filter(n => n.toRoles.includes('all'));
+        }
       }
-      
       return result;
     }
   },
+  mounted() {
+    // 进入页面自动刷新通知
+  },
+  activated() {
+    // 从其他页面返回时刷新
+  },
   methods: {
-    // 查看通知详情
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     viewNotification(notification) {
       this.currentNotification = notification;
       this.detailDialogVisible = true;
-      if (!notification.isRead) {
-        this.markAsRead(notification.id);
+      if (!notification.read) {
+        NotificationStore.markRead(notification.id);
       }
     },
-    // 标记已读
     markAsRead(id) {
-      const notification = this.notifications.find(n => n.id === id);
-      if (notification) {
-        notification.isRead = true;
-      }
+      NotificationStore.markRead(id);
+      this.$forceUpdate();
     },
-    // 全部标记已读
     markAllRead() {
-      this.$confirm('确定要将所有通知标记为已读吗？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'info'
-      }).then(() => {
-        this.notifications.forEach(n => n.isRead = true);
-        this.$message.success('已全部标记为已读');
-      }).catch(() => {});
+      const userInfo = this.getCurrentUser();
+      const role = userInfo ? userInfo.role : '';
+      NotificationStore.markAllRead(role);
+      this.$forceUpdate();
+      this.$message.success('已全部标记为已读');
     },
-    // 删除通知
     deleteNotification(id) {
       this.$confirm('确定要删除该通知吗？', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        const index = this.notifications.findIndex(n => n.id === id);
-        if (index > -1) {
-          this.notifications.splice(index, 1);
-          this.$message.success('删除成功');
-        }
+        const list = NotificationStore.getAll();
+        const filtered = list.filter(n => n.id !== id);
+        localStorage.setItem('hms_notifications', JSON.stringify(filtered));
+        this.$message.success('删除成功');
       }).catch(() => {});
     },
-    // 清空已读
     clearAll() {
-      const readCount = this.notifications.filter(n => n.isRead).length;
+      const readCount = this.allNotifications.filter(n => n.read).length;
       if (readCount === 0) {
         this.$message.info('没有已读通知需要清空');
         return;
       }
+      const userInfo = this.getCurrentUser();
+      const role = userInfo ? userInfo.role : '';
       this.$confirm(`确定要清空 ${readCount} 条已读通知吗？`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.notifications = this.notifications.filter(n => !n.isRead);
+        NotificationStore.clearAll(role);
         this.$message.success('已清空已读通知');
       }).catch(() => {});
     },
     // 类型图标
     typeIcon(type) {
       const map = {
+        disease_warning: 'el-icon-warning',
+        leave_pending: 'el-icon-s-order',
+        leave_approved: 'el-icon-circle-check',
+        leave_rejected: 'el-icon-circle-close',
+        leave_cancelled: 'el-icon-s-release',
+        homework_assigned: 'el-icon-document',
+        homework_correct: 'el-icon-edit',
+        task_published: 'el-icon-medal',
+        task_completed: 'el-icon-success',
+        announcement: 'el-icon-megaphone',
+        push_message: 'el-icon-bell',
+        health_upload: 'el-icon-upload',
+        accident_report: 'el-icon-warning-outline',
+        medical_warning: 'el-icon-first-aid-kit',
+        consultation: 'el-icon-service',
+        parent_comm: 'el-icon-chat-line-round',
         meeting: 'el-icon-s-custom',
         holiday: 'el-icon-date',
         health: 'el-icon-first-aid-kit',
@@ -374,35 +321,75 @@ export default {
       };
       return map[type] || 'el-icon-message';
     },
-    // 范围文本
-    scopeText(scope) {
+    // 通知图标背景色
+    typeBgClass(type) {
       const map = {
-        class: '班级',
-        school: '全校'
+        disease_warning: 'bg-danger',
+        leave_pending: 'bg-warning',
+        leave_approved: 'bg-success',
+        leave_rejected: 'bg-danger',
+        leave_cancelled: 'bg-info',
+        homework_assigned: 'bg-primary',
+        homework_correct: 'bg-success',
+        task_published: 'bg-primary',
+        task_completed: 'bg-success',
+        announcement: 'bg-success',
+        push_message: 'bg-primary',
+        health_upload: 'bg-info',
+        accident_report: 'bg-danger',
+        medical_warning: 'bg-danger',
+        consultation: 'bg-info',
+        parent_comm: 'bg-primary',
+        meeting: 'bg-primary',
+        holiday: 'bg-purple',
+        health: 'bg-success',
+        achievement: 'bg-warning',
+        emergency: 'bg-danger',
+        activity: 'bg-teal'
       };
-      return map[scope] || scope;
+      return map[type] || 'bg-info';
+    },
+    // 范围文本（从 toRoles 推断）
+    scopeText(notification) {
+      const roles = notification.toRoles || [];
+      if (roles.includes('all')) return '全校';
+      if (roles.includes('parent') && roles.includes('teacher')) return '家校';
+      if (roles.includes('parent')) return '家长';
+      if (roles.includes('teacher')) return '教师';
+      if (roles.includes('student')) return '学生';
+      return '其他';
     },
     // 范围标签类型
-    scopeTagType(scope) {
-      return scope === 'school' ? 'success' : 'primary';
+    scopeTagType(notification) {
+      const text = this.scopeText(notification);
+      if (text === '全校') return 'success';
+      if (text === '家校') return 'warning';
+      return 'primary';
     },
     // 优先级文本
-    priorityText(priority) {
-      const map = {
-        urgent: '紧急',
-        high: '重要',
-        normal: '普通'
-      };
-      return map[priority] || priority;
+    priorityText(notification) {
+      const type = notification.type || '';
+      if (type.includes('emergency') || type.includes('accident') || type.includes('medical_warning') || type.includes('disease_warning')) return '紧急';
+      if (type.includes('leave_pending') || type.includes('homework') || type.includes('task')) return '重要';
+      return '普通';
     },
     // 优先级标签类型
-    priorityTagType(priority) {
-      const map = {
-        urgent: 'danger',
-        high: 'warning',
-        normal: 'info'
-      };
-      return map[priority] || 'info';
+    priorityTagType(notification) {
+      const text = this.priorityText(notification);
+      if (text === '紧急') return 'danger';
+      if (text === '重要') return 'warning';
+      return 'info';
+    },
+    // 发送者文本
+    senderText(notification) {
+      return notification.fromUser || notification.fromRole || '系统';
+    },
+    // 跳转链接
+    goToLink(link) {
+      if (link) {
+        this.detailDialogVisible = false;
+        this.$router.push('/' + link);
+      }
     }
   }
 };
@@ -586,35 +573,14 @@ export default {
   flex-shrink: 0;
 }
 
-.notification-icon.meeting {
-  background: #E3F2FD;
-  color: #2196F3;
-}
-
-.notification-icon.holiday {
-  background: #F3E5F5;
-  color: #9C27B0;
-}
-
-.notification-icon.health {
-  background: #E8F5E9;
-  color: #4CAF50;
-}
-
-.notification-icon.achievement {
-  background: #FFF8E1;
-  color: #FFC107;
-}
-
-.notification-icon.emergency {
-  background: #FFEBEE;
-  color: #F44336;
-}
-
-.notification-icon.activity {
-  background: #E0F2F1;
-  color: #009688;
-}
+.notification-icon.bg-danger { background: #FFEBEE; color: #F44336; }
+.notification-icon.bg-success { background: #E8F5E9; color: #4CAF50; }
+.notification-icon.bg-primary { background: #E3F2FD; color: #2196F3; }
+.notification-icon.bg-warning { background: #FFF8E1; color: #FFC107; }
+.notification-icon.bg-info { background: #E0F7FA; color: #00BCD4; }
+.notification-icon.bg-purple { background: #F3E5F5; color: #9C27B0; }
+.notification-icon.bg-teal { background: #E0F2F1; color: #009688; }
+.notification-icon.bg-default { background: #F5F5F5; color: #9E9E9E; }
 
 .notification-content {
   flex: 1;

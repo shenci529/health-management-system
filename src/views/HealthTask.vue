@@ -335,6 +335,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'HealthTask',
   data() {
@@ -414,6 +416,12 @@ export default {
     this.updateProgress();
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     loadTaskData() {
       const savedData = localStorage.getItem('healthTaskData');
       if (savedData) {
@@ -453,6 +461,24 @@ export default {
 
         // 获得勋章
         this.awardMedal(taskKey);
+
+        // 通知老师：学生完成了健康任务
+        const medalMap = {
+          brushTeeth: '刷牙打卡',
+          drinkWater: '喝水打卡',
+          posture: '坐姿矫正',
+          outdoor: '户外运动'
+        };
+        const userInfo = this.getCurrentUser();
+        NotificationStore.send({
+          type: 'task_completed',
+          title: '🏅 健康任务完成',
+          content: `学生 ${userInfo ? userInfo.username : '学生'} 完成了健康任务"${medalMap[taskKey] || taskKey}"，获得了相应勋章。`,
+          fromRole: 'student',
+          fromUser: userInfo ? userInfo.username : '学生',
+          toRoles: ['teacher', 'parent'],
+          link: '/health-task'
+        });
       }
 
       this.saveData();

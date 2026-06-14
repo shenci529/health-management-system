@@ -284,6 +284,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'ConsultationManage',
   data() {
@@ -358,6 +360,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     getCategoryName(category) {
       const map = { health: '健康问题', diet: '饮食问题', mental: '心理问题', checkup: '体检问题', other: '其他' };
       return map[category] || category;
@@ -433,6 +441,7 @@ export default {
         this.$message.warning('请输入回复内容');
         return;
       }
+      const userInfo = this.getCurrentUser();
       this.currentConsultation.replies.push({
         author: '管理员',
         time: new Date().toLocaleString(),
@@ -440,6 +449,18 @@ export default {
         content: this.replyForm.content
       });
       this.currentConsultation.status = 'replied';
+
+      // 通知家长：健康咨询已回复
+      NotificationStore.send({
+        type: 'consultation',
+        title: '💬 健康咨询已回复',
+        content: `您提交的咨询"${this.currentConsultation.title}"已有回复：${this.replyForm.content.substring(0, 50)}...`,
+        fromRole: 'doctor',
+        fromUser: userInfo ? userInfo.username : '医生/老师',
+        toRoles: ['parent'],
+        link: '/consultation-manage'
+      });
+
       this.replyForm = { content: '', files: [] };
       this.$message.success('回复已提交');
     },

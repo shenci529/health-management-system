@@ -141,6 +141,7 @@
 
 <script>
 import store from '@/store.js';
+import { NotificationStore } from '@/permission';
 
 export default {
   name: 'HealthUpload',
@@ -180,6 +181,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     getUserName(userId) {
       const user = store.getUserById(userId);
       return user ? user.username : '未知';
@@ -248,6 +255,7 @@ export default {
             return;
           }
 
+          const userInfo = this.getCurrentUser();
           store.addHealthRecord({
             userId: this.form.userId,
             date: this.form.date,
@@ -262,6 +270,18 @@ export default {
             smoke: this.form.smoke,
             drink: this.form.drink
           });
+
+          // 通知老师：家长/学生上传了健康数据
+          NotificationStore.send({
+            type: 'health_upload',
+            title: '📊 健康数据已上传',
+            content: `${userInfo ? userInfo.username : '用户'}于${this.form.date}上传了健康数据（身高${this.form.height}m，体重${this.form.weight}kg），请老师及时查看。`,
+            fromRole: userInfo ? userInfo.role : 'parent',
+            fromUser: userInfo ? userInfo.username : '用户',
+            toRoles: ['teacher', 'admin'],
+            link: '/health-upload'
+          });
+
           this.$message.success('上传成功！');
         }
       });

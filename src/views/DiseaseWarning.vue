@@ -285,6 +285,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'DiseaseWarning',
   data() {
@@ -434,6 +436,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     getLevelType(level) {
       const map = {
         high: 'danger',
@@ -519,6 +527,23 @@ export default {
         this.$message.warning('请选择至少一项处理措施');
         return;
       }
+      // 更新预警状态为已处理
+      if (this.currentWarning) {
+        this.currentWarning.status = 'resolved';
+        const idx = this.warningList.findIndex(w => w.id === this.currentWarning.id);
+        if (idx >= 0) this.warningList[idx] = this.currentWarning;
+        // 发送通知给家长和老师
+        const userInfo = this.getCurrentUser();
+        NotificationStore.send({
+          type: 'disease_warning',
+          title: '🦠 传染病预警已处理',
+          content: `班级 ${this.currentWarning.className} 的 ${this.currentWarning.diseaseType} 预警已由教师处理，处理措施：${this.handleForm.measures.join('、')}。${this.handleForm.remark ? ('备注：' + this.handleForm.remark) : ''}`,
+          fromRole: userInfo ? userInfo.role : 'teacher',
+          fromUser: userInfo ? userInfo.username : '教师',
+          toRoles: ['parent', 'teacher'],
+          link: '/disease-warning'
+        });
+      }
       this.$message.success('预警处理成功');
       this.handleDialogVisible = false;
       this.detailDialogVisible = false;
@@ -528,7 +553,38 @@ export default {
       this.suggestionDialogVisible = false;
     },
     showAddWarningDialog() {
-      this.$message.info('新增预警功能开发中');
+      this.$prompt('请输入班级名称', '新增预警', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /.+/,
+        inputErrorMessage: '班级名称不能为空'
+      }).then(({ value }) => {
+        const newWarning = {
+          id: Date.now(),
+          warningNo: 'YW' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '001',
+          className: value,
+          diseaseType: '流感',
+          symptoms: ['发热', '咳嗽'],
+          studentCount: 1,
+          level: 'medium',
+          createTime: new Date().toLocaleString(),
+          status: 'pending',
+          students: [{ name: '待登记', symptoms: '待确认' }]
+        };
+        this.warningList.unshift(newWarning);
+        // 发送预警通知给家长和老师
+        const userInfo = this.getCurrentUser();
+        NotificationStore.send({
+          type: 'disease_warning',
+          title: '🦠 传染病预警通知',
+          content: `班级 ${value} 发布了新的传染病预警，类型：流感，请家长和老师注意防范。`,
+          fromRole: userInfo ? userInfo.role : 'doctor',
+          fromUser: userInfo ? userInfo.username : '校医',
+          toRoles: ['parent', 'teacher'],
+          link: '/disease-warning'
+        });
+        this.$message.success('预警已发布');
+      }).catch(() => {});
     },
     exportTracking() {
       this.$message.success('台账导出成功');

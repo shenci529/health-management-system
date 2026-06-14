@@ -293,6 +293,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'ParentCommunication',
   data() {
@@ -380,6 +382,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     // 查看公告详情
     handleAnnouncementDetail(item) {
       this.currentAnnouncement = item;
@@ -400,7 +408,8 @@ export default {
     // 发送聊天消息
     sendMessage() {
       if (!this.newMessage.trim()) return;
-      
+
+      const userInfo = this.getCurrentUser();
       const newMsg = {
         sender: 'parent',
         content: this.newMessage,
@@ -408,8 +417,20 @@ export default {
         senderName: '我'
       };
       this.messages.push(newMsg);
+
+      // 通知老师：家长发来了新消息
+      NotificationStore.send({
+        type: 'parent_comm',
+        title: '💬 家校沟通新消息',
+        content: `家长 ${userInfo ? userInfo.username : '家长'} 发送了新消息：${this.newMessage.substring(0, 50)}${this.newMessage.length > 50 ? '...' : ''}`,
+        fromRole: 'parent',
+        fromUser: userInfo ? userInfo.username : '家长',
+        toRoles: ['teacher', 'doctor'],
+        link: '/parent-communication'
+      });
+
       this.newMessage = '';
-      
+
       // 模拟老师回复
       setTimeout(() => {
         const replyMsg = {
@@ -421,7 +442,7 @@ export default {
         this.messages.push(replyMsg);
         this.scrollToBottom();
       }, 1000);
-      
+
       this.scrollToBottom();
     },
     // 滚动到底部
@@ -446,6 +467,7 @@ export default {
     submitMessageForm() {
       this.$refs.messageForm.validate((valid) => {
         if (valid) {
+          const userInfo = this.getCurrentUser();
           const newHistory = {
             receiver: this.messageForm.receiver,
             receiverName: this.getReceiverName(this.messageForm.receiver),
@@ -456,6 +478,18 @@ export default {
             urgency: this.messageForm.urgency
           };
           this.messageHistory.unshift(newHistory);
+
+          // 通知老师：家长提交了新的咨询
+          NotificationStore.send({
+            type: 'parent_comm',
+            title: '📩 新的家校咨询',
+            content: `家长 ${userInfo ? userInfo.username : '家长'} 提交了"${this.getSubjectName(this.messageForm.subject)}"咨询：${this.messageForm.content.substring(0, 50)}...`,
+            fromRole: 'parent',
+            fromUser: userInfo ? userInfo.username : '家长',
+            toRoles: ['teacher', 'doctor'],
+            link: '/parent-communication'
+          });
+
           this.$message.success('消息发送成功');
           this.resetMessageForm();
         }

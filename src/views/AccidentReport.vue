@@ -293,6 +293,8 @@
 </template>
 
 <script>
+import { NotificationStore } from '@/permission';
+
 export default {
   name: 'AccidentReport',
   data() {
@@ -392,6 +394,12 @@ export default {
     }
   },
   methods: {
+    getCurrentUser() {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    },
     handleSizeChange(val) {
       this.pageSize = val
     },
@@ -430,8 +438,19 @@ export default {
     submitForm() {
       this.$refs.form.validate(valid => {
         if (valid) {
-          this.$message.success('保存成功')
-          this.dialogVisible = false
+          const userInfo = this.getCurrentUser();
+          // 通知校医、管理员、家长：发生了意外事故
+          NotificationStore.send({
+            type: 'accident_report',
+            title: '⚠️ 意外伤害上报通知',
+            content: `学生 ${this.form.studentId} 在 ${this.form.location} 发生了${this.form.injuryType}，严重程度：${this.form.severity}。${this.form.description ? ('事件描述：' + this.form.description) : ''}`,
+            fromRole: 'teacher',
+            fromUser: userInfo ? userInfo.username : '教师',
+            toRoles: ['doctor', 'admin', 'parent'],
+            link: '/accident-report'
+          });
+          this.$message.success('保存成功');
+          this.dialogVisible = false;
         }
       })
     },
