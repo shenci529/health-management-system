@@ -20,6 +20,7 @@ export const ROLE_PERMISSIONS = {
   'class-grade-manage':  ['admin'],
   'system-audit':        ['admin'],
   'system-config':       ['admin'],
+  'license-manage':      ['admin'],
   'announcement-manage': ['admin'],
   'push-message':        ['admin'],
   'consultation-manage': ['admin'],

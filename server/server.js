@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
 const smsService = require('./smsService');
+const licenseService = require('./licenseService');
 
 const PORT = process.env.PORT || 3002;
 
@@ -44,6 +45,9 @@ function saveDatabase() {
 function queryAll(sql, params = []) {
   if (!dbInstance) throw new Error('数据库未初始化');
   const stmt = dbInstance.prepare(sql);
+  if (params && params.length > 0) {
+    stmt.bind(params);
+  }
   const results = [];
   while (stmt.step()) {
     results.push(stmt.getAsObject());
@@ -55,6 +59,9 @@ function queryAll(sql, params = []) {
 function queryOne(sql, params = []) {
   if (!dbInstance) throw new Error('数据库未初始化');
   const stmt = dbInstance.prepare(sql);
+  if (params && params.length > 0) {
+    stmt.bind(params);
+  }
   let result = null;
   if (stmt.step()) {
     result = stmt.getAsObject();
@@ -287,6 +294,200 @@ function queryExec(sql) {
       const result = queryRun('INSERT INTO notifications (title, content, target_role) VALUES (?, ?, ?)',
         [title, content, target_role || 'all']);
       res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.post('/api/license/generate', async (req, res) => {
+    try {
+      const { customer_name = '', customer_phone = '', customer_email = '', school_name = '', valid_days = 365, max_users = 100, notes = '' } = req.body;
+      
+      const licenseCode = licenseService.generateLicenseCode();
+      const formattedCode = licenseService.formatLicenseCode(licenseCode);
+      
+      const qrData = `LICENSE:${licenseCode}`;
+      const qrCode = await licenseService.generateQRCode(qrData);
+      
+      const validStart = new Date().toISOString().split('T')[0];
+      const validEnd = valid_days 
+        ? new Date(Date.now() + valid_days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : null;
+      
+      const result = queryRun(
+        'INSERT INTO licenses (license_code, qr_code, customer_name, customer_phone, customer_email, school_name, valid_start, valid_end, max_users, created_by, sold_at, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [licenseCode, qrCode, customer_name, customer_phone, customer_email, school_name, validStart, validEnd || '', max_users, req.body.created_by || 1, new Date().toISOString(), notes]
+      );
+      
+      res.json({
+        success: true,
+        id: result.lastID,
+        license_code: formattedCode,
+        qr_code: qrCode,
+        valid_start: validStart,
+        valid_end: validEnd
+      });
+    } catch (err) {
+      console.error('生成授权码失败:', err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.get('/api/license', (req, res) => {
+    try {
+      const { status } = req.query;
+      let sql = 'SELECT * FROM licenses ORDER BY created_at DESC';
+      const params = [];
+      
+      if (status) {
+        sql = 'SELECT * FROM licenses WHERE status = ? ORDER BY created_at DESC';
+        params.push(status);
+      }
+      
+      const licenses = queryAll(sql, params);
+      licenses.forEach(license => {
+        if (license.license_code) {
+          license.formatted_code = licenseService.formatLicenseCode(license.license_code);
+        }
+      });
+      
+      res.json({ success: true, data: licenses });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.get('/api/license/:id', (req, res) => {
+    try {
+      const license = queryOne('SELECT * FROM licenses WHERE id = ?', [req.params.id]);
+      if (!license) {
+        return res.json({ success: false, message: '授权码不存在' });
+      }
+      
+      if (license.license_code) {
+        license.formatted_code = licenseService.formatLicenseCode(license.license_code);
+      }
+      
+      res.json({ success: true, data: license });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.post('/api/license/:id/activate', (req, res) => {
+    try {
+      const { code, activated_by } = req.body;
+      
+      const cleanCode = licenseService.cleanLicenseCode(code);
+      const license = queryOne('SELECT * FROM licenses WHERE license_code = ? AND id = ?', [cleanCode, req.params.id]);
+      
+      if (!license) {
+        return res.json({ success: false, message: '授权码不存在或不匹配' });
+      }
+      
+      if (license.status !== 'active') {
+        return res.json({ success: false, message: '授权码已失效' });
+      }
+      
+      if (license.valid_end && new Date(license.valid_end) < new Date()) {
+        queryRun('UPDATE licenses SET status = ? WHERE id = ?', ['expired', req.params.id]);
+        return res.json({ success: false, message: '授权码已过期' });
+      }
+      
+      queryRun(
+        'UPDATE licenses SET status = ?, activated_at = ?, activated_by = ? WHERE id = ?',
+        ['used', new Date().toISOString(), activated_by || 'unknown', req.params.id]
+      );
+      
+      res.json({ success: true, message: '授权激活成功' });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.post('/api/license/:id/revoke', (req, res) => {
+    try {
+      queryRun('UPDATE licenses SET status = ? WHERE id = ?', ['revoked', req.params.id]);
+      res.json({ success: true, message: '授权已撤销' });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.post('/api/license/validate', (req, res) => {
+    try {
+      const { code } = req.body;
+      
+      if (!licenseService.validateLicenseCode(code)) {
+        return res.json({ success: false, message: '授权码格式不正确' });
+      }
+      
+      const cleanCode = licenseService.cleanLicenseCode(code);
+      const license = queryOne('SELECT * FROM licenses WHERE license_code = ?', [cleanCode]);
+      
+      if (!license) {
+        return res.json({ success: false, message: '授权码不存在' });
+      }
+      
+      if (license.status === 'revoked') {
+        return res.json({ success: false, message: '授权码已被撤销' });
+      }
+      
+      if (license.status === 'expired') {
+        return res.json({ success: false, message: '授权码已过期' });
+      }
+      
+      if (license.status === 'used') {
+        return res.json({ success: false, message: '授权码已被使用' });
+      }
+      
+      if (license.valid_end && new Date(license.valid_end) < new Date()) {
+        queryRun('UPDATE licenses SET status = ? WHERE id = ?', ['expired', license.id]);
+        return res.json({ success: false, message: '授权码已过期' });
+      }
+      
+      res.json({
+        success: true,
+        data: {
+          id: license.id,
+          formatted_code: licenseService.formatLicenseCode(license.license_code),
+          customer_name: license.customer_name,
+          school_name: license.school_name,
+          valid_end: license.valid_end,
+          max_users: license.max_users
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.delete('/api/license/:id', (req, res) => {
+    try {
+      queryRun('DELETE FROM licenses WHERE id = ?', [req.params.id]);
+      res.json({ success: true, message: '授权已删除' });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  app.get('/api/license/stats', (req, res) => {
+    try {
+      const active = queryOne("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'");
+      const used = queryOne("SELECT COUNT(*) as count FROM licenses WHERE status = 'used'");
+      const expired = queryOne("SELECT COUNT(*) as count FROM licenses WHERE status = 'expired'");
+      const revoked = queryOne("SELECT COUNT(*) as count FROM licenses WHERE status = 'revoked'");
+      
+      res.json({
+        success: true,
+        data: {
+          total: (active?.count || 0) + (used?.count || 0) + (expired?.count || 0) + (revoked?.count || 0),
+          active: active?.count || 0,
+          used: used?.count || 0,
+          expired: expired?.count || 0,
+          revoked: revoked?.count || 0
+        }
+      });
     } catch (err) {
       res.status(500).json({ success: false, message: err.message });
     }

@@ -404,7 +404,8 @@ export default {
             { path: '/role-manage', title: '角色管理', icon: 'el-icon-s-custom' },
             { path: '/class-grade-manage', title: '班级管理', icon: 'el-icon-school' },
             { path: '/system-audit', title: '系统审计', icon: 'el-icon-s-check' },
-            { path: '/system-config', title: '系统设置', icon: 'el-icon-setting' }
+            { path: '/system-config', title: '系统设置', icon: 'el-icon-setting' },
+            { path: '/license-manage', title: '授权管理', icon: 'el-icon-key' }
           ].filter((x) => isAllowed(x.path))
         }
       ];

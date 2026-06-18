@@ -45,6 +45,7 @@ const routes = [
       { path: 'class-grade-manage', name: 'ClassGradeManage', component: () => import('@/views/ClassGradeManage.vue'), meta: { roles: getAllowedRoles('class-grade-manage') } },
       { path: 'system-audit', name: 'SystemAudit', component: () => import('@/views/SystemAudit.vue'), meta: { roles: getAllowedRoles('system-audit') } },
       { path: 'system-config', name: 'SystemConfig', component: () => import('@/views/SystemConfig.vue'), meta: { roles: getAllowedRoles('system-config') } },
+      { path: 'license-manage', name: 'LicenseManage', component: () => import('@/views/LicenseManage.vue'), meta: { roles: getAllowedRoles('license-manage') } },
 
       // ========== 健康档案中心 ==========
       { path: 'allergy-history', name: 'AllergyHistory', component: () => import('@/views/AllergyHistory.vue'), meta: { roles: getAllowedRoles('allergy-history') } },

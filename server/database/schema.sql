@@ -348,6 +348,29 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- 授权码表（用于项目售卖授权）
+CREATE TABLE IF NOT EXISTS licenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    license_code VARCHAR(64) NOT NULL UNIQUE,
+    qr_code TEXT,
+    customer_name VARCHAR(100),
+    customer_phone VARCHAR(20),
+    customer_email VARCHAR(100),
+    school_name VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'active', -- active, used, expired, revoked
+    valid_start DATE,
+    valid_end DATE,
+    max_users INTEGER DEFAULT 100,
+    created_by INTEGER,
+    sold_at DATETIME,
+    activated_at DATETIME,
+    activated_by VARCHAR(100),
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
 -- =============================================
 -- 插入初始数据
 -- =============================================
