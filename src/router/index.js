@@ -37,7 +37,7 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { roles: ['admin', 'teacher', 'parent', 'student', 'doctor'], requiresLicense: true }
+    meta: { roles: ['admin', 'teacher', 'parent', 'student', 'doctor'], requiresLicense: false }
   },
   {
     path: '/',
@@ -52,7 +52,7 @@ const routes = [
       { path: 'class-grade-manage', name: 'ClassGradeManage', component: () => import('@/views/ClassGradeManage.vue'), meta: { roles: getAllowedRoles('class-grade-manage') } },
       { path: 'system-audit', name: 'SystemAudit', component: () => import('@/views/SystemAudit.vue'), meta: { roles: getAllowedRoles('system-audit') } },
       { path: 'system-config', name: 'SystemConfig', component: () => import('@/views/SystemConfig.vue'), meta: { roles: getAllowedRoles('system-config') } },
-      { path: 'license-manage', name: 'LicenseManage', component: () => import('@/views/LicenseManage.vue'), meta: { roles: getAllowedRoles('license-manage') } },
+      { path: 'license-manage', name: 'LicenseManage', component: () => import('@/views/LicenseManage.vue'), meta: { roles: ['admin'], requiresLicense: false } },
 
       // ========== 健康档案中心 ==========
       { path: 'allergy-history', name: 'AllergyHistory', component: () => import('@/views/AllergyHistory.vue'), meta: { roles: getAllowedRoles('allergy-history') } },
@@ -76,6 +76,7 @@ const routes = [
       // ========== 体育活动管理 ==========
       { path: 'sports-activity', name: 'SportsActivity', component: () => import('@/views/SportsActivity.vue'), meta: { roles: getAllowedRoles('sports-activity') } },
       { path: 'sports-ranking', name: 'SportsRanking', component: () => import('@/views/SportsRanking.vue'), meta: { roles: getAllowedRoles('sports-ranking') } },
+      { path: 'basketball-game', name: 'BasketballGame', component: () => import('@/views/BasketballGame.vue'), meta: { roles: ['admin', 'teacher', 'student', 'parent'] } },
       { path: 'exercise-knowledge-manage', name: 'ExerciseKnowledgeManage', component: () => import('@/views/ExerciseKnowledgeManage.vue'), meta: { roles: getAllowedRoles('exercise-knowledge-manage') } },
       { path: 'exercise-detail-manage', name: 'ExerciseDetailManage', component: () => import('@/views/ExerciseDetailManage.vue'), meta: { roles: getAllowedRoles('exercise-detail-manage') } },
 
@@ -152,21 +153,6 @@ router.beforeEach(async (to, from, next) => {
 
     // 1. 访问 /login：所有人都能进；已有登录身份时清掉后放行
     if (to.path === '/login') {
-      // 但先检查授权状态
-      const licenseInfo = localStorage.getItem('license_info');
-      if (!licenseInfo) {
-        return next('/activate');
-      }
-      try {
-        const info = JSON.parse(licenseInfo);
-        if (info.valid_end && new Date(info.valid_end) < new Date()) {
-          // 授权已过期
-          return next('/activate');
-        }
-      } catch (e) {
-        return next('/activate');
-      }
-
       const t = localStorage.getItem('token');
       if (t) {
         localStorage.removeItem('token');
@@ -176,14 +162,26 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // 2. 检查系统授权状态（除了激活页面，其他都需要授权）
-    if (to.meta.requiresLicense !== false) {
+    // 但：如果页面明确标记 requiresLicense: false → 跳过
+    // 或：如果用户已登录且是 admin → 跳过（管理员可以先生成授权码再激活）
+    let isAdminLoggedIn = false;
+    try {
+      const raw = localStorage.getItem('userInfo');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && obj.role === 'admin') isAdminLoggedIn = true;
+      }
+    } catch (e) {
+      isAdminLoggedIn = false;
+    }
+
+    if (to.meta.requiresLicense !== false && !isAdminLoggedIn) {
       const licenseInfo = localStorage.getItem('license_info');
       if (!licenseInfo) {
         return next('/activate');
       }
       try {
         const info = JSON.parse(licenseInfo);
-        // 检查授权是否过期
         if (info.valid_end && new Date(info.valid_end) < new Date()) {
           localStorage.removeItem('license_info');
           return next('/activate');
