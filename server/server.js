@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
+const smsService = require('./smsService');
 
 const PORT = process.env.PORT || 3002;
 
@@ -184,8 +185,35 @@ function queryExec(sql) {
     }
   });
 
-  app.post('/api/parent/send-code', (req, res) => {
-    res.json({ success: true, message: '验证码已发送（测试验证码：123456）' });
+  app.post('/api/parent/send-code', async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone) {
+        return res.json({ success: false, message: '请输入手机号' });
+      }
+      
+      if (!smsService.isValidPhone(phone)) {
+        return res.json({ success: false, message: '手机号格式不正确' });
+      }
+      
+      const code = smsService.generateCode();
+      
+      const result = await smsService.sendVerifyCode(phone, code);
+      
+      // 开发模式下打印验证码方便测试
+      if (result.mock) {
+        console.log('📱 模拟短信验证码:', code);
+      }
+      
+      if (result.success) {
+        res.json({ success: true, message: result.message, mock: result.mock });
+      } else {
+        res.json({ success: false, message: result.message });
+      }
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
   });
 
   app.get('/api/teacher', (req, res) => {
