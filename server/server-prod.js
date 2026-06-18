@@ -23,6 +23,7 @@ const notificationRoutes = require('./routes/notification');
 const exportRoutes = require('./routes/export');
 const userRoutes = require('./routes/users');
 const abnormalRoutes = require('./routes/abnormal');
+const licenseRoutes = require('./routes/license');
 
 app.use('/api/student', studentRoutes);
 app.use('/api/parent', parentRoutes);
@@ -31,6 +32,7 @@ app.use('/api/notification', notificationRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/abnormal', abnormalRoutes);
+app.use('/api/license', licenseRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

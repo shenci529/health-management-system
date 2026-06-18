@@ -32,6 +32,9 @@ class Database {
   static all(sql, params = []) {
     if (!dbInstance) throw new Error('数据库未初始化');
     const stmt = dbInstance.prepare(sql);
+    if (params && params.length > 0) {
+      stmt.bind(params);
+    }
     const results = [];
     while (stmt.step()) {
       const result = stmt.getAsObject();
@@ -44,6 +47,9 @@ class Database {
   static get(sql, params = []) {
     if (!dbInstance) throw new Error('数据库未初始化');
     const stmt = dbInstance.prepare(sql);
+    if (params && params.length > 0) {
+      stmt.bind(params);
+    }
     let result = null;
     if (stmt.step()) {
       result = stmt.getAsObject();
