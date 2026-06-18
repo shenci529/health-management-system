@@ -493,6 +493,49 @@ function queryExec(sql) {
     }
   });
 
+  // 生成临时激活二维码（扫码激活用）
+  app.post('/api/license/qr-generate', async (req, res) => {
+    try {
+      // 生成一个临时token用于扫码激活
+      const tempToken = 'TEMP_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+      const expireTime = new Date(Date.now() + 30 * 60 * 1000); // 30分钟后过期
+
+      const qrData = JSON.stringify({
+        type: 'activate',
+        token: tempToken,
+        expire: expireTime.toISOString()
+      });
+
+      const qrCode = await licenseService.generateQRCode(qrData, { width: 200 });
+
+      res.json({
+        success: true,
+        qr_code: qrCode,
+        temp_token: tempToken,
+        expire_time: expireTime.toLocaleString()
+      });
+    } catch (err) {
+      console.error('生成二维码失败:', err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  // 获取授权信息（不带验证，仅用于展示）
+  app.get('/api/license/info', (req, res) => {
+    try {
+      const licenseInfo = queryOne('SELECT * FROM licenses WHERE status = "used" ORDER BY activated_at DESC LIMIT 1');
+      if (licenseInfo) {
+        licenseInfo.formatted_code = licenseService.formatLicenseCode(licenseInfo.license_code);
+      }
+      res.json({
+        success: true,
+        data: licenseInfo
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
   app.use((req, res) => {
     res.status(404).json({ success: false, message: '请求的资源不存在', path: req.url });
   });

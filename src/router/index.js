@@ -21,16 +21,23 @@ const lazyLoad = (chunkName, filePath) => () => import(/* webpackChunkName: "[re
 const Login = () => import(/* webpackChunkName: "login" */ '@/views/Login.vue');
 const Layout = () => import(/* webpackChunkName: "layout" */ '@/views/Layout.vue');
 const Dashboard = () => import(/* webpackChunkName: "dashboard" */ '@/views/Dashboard.vue');
+const LicenseActivate = () => import(/* webpackChunkName: "license" */ '@/views/LicenseActivate.vue');
 
 // ========================================
 // 路由配置表（全部使用懒加载）
 // ========================================
 const routes = [
   {
+    path: '/activate',
+    name: 'LicenseActivate',
+    component: LicenseActivate,
+    meta: { requiresLicense: false }  // 不需要授权就能访问
+  },
+  {
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { roles: ['admin', 'teacher', 'parent', 'student', 'doctor'] }
+    meta: { roles: ['admin', 'teacher', 'parent', 'student', 'doctor'], requiresLicense: true }
   },
   {
     path: '/',
@@ -136,10 +143,30 @@ const router = new Router({
 });
 
 // ==================== 路由守卫 ====================
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   try {
+    // 0. 检查是否需要授权（激活页面不需要）
+    if (to.path === '/activate') {
+      return next();
+    }
+
     // 1. 访问 /login：所有人都能进；已有登录身份时清掉后放行
     if (to.path === '/login') {
+      // 但先检查授权状态
+      const licenseInfo = localStorage.getItem('license_info');
+      if (!licenseInfo) {
+        return next('/activate');
+      }
+      try {
+        const info = JSON.parse(licenseInfo);
+        if (info.valid_end && new Date(info.valid_end) < new Date()) {
+          // 授权已过期
+          return next('/activate');
+        }
+      } catch (e) {
+        return next('/activate');
+      }
+
       const t = localStorage.getItem('token');
       if (t) {
         localStorage.removeItem('token');
@@ -148,7 +175,25 @@ router.beforeEach((to, from, next) => {
       return next();
     }
 
-    // 2. 读取本地身份
+    // 2. 检查系统授权状态（除了激活页面，其他都需要授权）
+    if (to.meta.requiresLicense !== false) {
+      const licenseInfo = localStorage.getItem('license_info');
+      if (!licenseInfo) {
+        return next('/activate');
+      }
+      try {
+        const info = JSON.parse(licenseInfo);
+        // 检查授权是否过期
+        if (info.valid_end && new Date(info.valid_end) < new Date()) {
+          localStorage.removeItem('license_info');
+          return next('/activate');
+        }
+      } catch (e) {
+        return next('/activate');
+      }
+    }
+
+    // 3. 读取本地身份
     const token = localStorage.getItem('token');
     let userRole = null;
     try {
@@ -161,7 +206,7 @@ router.beforeEach((to, from, next) => {
       userRole = null;
     }
 
-    // 3. 没有有效身份 → 跳登录页
+    // 4. 没有有效身份 → 跳登录页
     const VALID = ['admin', 'teacher', 'parent', 'student', 'doctor'];
     if (!token || !userRole || !VALID.includes(userRole)) {
       localStorage.removeItem('token');
@@ -169,15 +214,15 @@ router.beforeEach((to, from, next) => {
       return next('/login');
     }
 
-    // 4. 管理员 → 永远放行
+    // 5. 管理员 → 永远放行
     if (userRole === 'admin') return next();
 
-    // 5. 其他角色 → 按权限表判定
+    // 6. 其他角色 → 按权限表判定
     const pathKey = String(to.path).replace(/^\//, '');
     const allowed = ROLE_PERMISSIONS[pathKey];
     if (allowed && allowed.includes(userRole)) return next();
 
-    // 6. 无权限 → 跳回首页，不清除身份
+    // 7. 无权限 → 跳回首页，不清除身份
     if (to.path === '/dashboard') return next();
     return next('/dashboard');
   } catch (err) {
