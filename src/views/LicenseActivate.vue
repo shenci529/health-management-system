@@ -60,22 +60,12 @@
         <p>Powered by 健康管理系统</p>
       </div>
     </div>
-
-    <!-- 二维码扫描激活 -->
-    <div class="qr-activate-card" v-if="showQRCode">
-      <div class="qr-header">
-        <h2>扫码激活</h2>
-        <p>使用授权管理APP扫描下方二维码</p>
-      </div>
-      <div class="qr-code" v-html="qrCodeSvg"></div>
-      <div class="qr-expire" v-if="qrExpireTime">
-        二维码有效期：{{ qrExpireTime }}
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
+import licenseService from '../licenseService.js';
+
 export default {
   name: 'LicenseActivate',
   data() {
@@ -87,14 +77,10 @@ export default {
       statusMessage: '请输入授权码进行激活',
       statusClass: 'info',
       statusIcon: 'el-icon-info',
-      licenseInfo: null,
-      showQRCode: false,
-      qrCodeSvg: '',
-      qrExpireTime: ''
+      licenseInfo: null
     };
   },
   mounted() {
-    // 检查是否已有有效授权
     this.checkExistingLicense();
   },
   methods: {
@@ -103,7 +89,6 @@ export default {
         const stored = localStorage.getItem('license_info');
         if (stored) {
           const info = JSON.parse(stored);
-          // 检查授权是否过期
           if (info.valid_end) {
             const endDate = new Date(info.valid_end);
             if (endDate >= new Date()) {
@@ -131,42 +116,24 @@ export default {
       this.statusMessage = '请输入授权码进行激活';
     },
 
-    async handleActivate() {
+    handleActivate() {
       if (!this.licenseCode) {
         this.$message.warning('请输入授权码');
         return;
       }
-
-      // 清理授权码格式
-      const cleanCode = this.licenseCode.replace(/-/g, '').toUpperCase();
 
       this.isActivating = true;
       this.statusMessage = '正在验证授权码...';
       this.statusClass = 'info';
       this.statusIcon = 'el-icon-loading';
 
-      try {
-        // 调用授权验证API
-        const apiBase = localStorage.getItem('api_base') || '';
-        const response = await fetch(`${apiBase}/api/license/validate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ code: cleanCode })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          // 授权验证成功，保存授权信息
+      setTimeout(() => {
+        const cleanCode = this.licenseCode.replace(/[^A-Z0-9]/g, '').toUpperCase();
+        
+        if (licenseService.validateLicenseCode(cleanCode)) {
           const licenseInfo = {
             code: cleanCode,
-            formatted_code: result.data.formatted_code,
-            customer_name: result.data.customer_name,
-            school_name: result.data.school_name,
-            valid_end: result.data.valid_end,
-            max_users: result.data.max_users,
+            formatted_code: licenseService.formatLicenseCode(cleanCode),
             activated_at: new Date().toISOString(),
             contact_info: this.contactInfo
           };
@@ -185,37 +152,14 @@ export default {
             this.$router.push('/login');
           }, 1500);
         } else {
-          this.statusMessage = result.message || '授权码无效';
+          this.statusMessage = '授权码无效，请检查后重试';
           this.statusClass = 'error';
           this.statusIcon = 'el-icon-error';
-          this.$message.error(result.message || '授权码验证失败');
+          this.$message.error('授权码无效，请检查后重试或联系供应商');
         }
-      } catch (error) {
-        console.error('激活失败:', error);
-        this.statusMessage = '激活失败，请检查网络连接';
-        this.statusClass = 'error';
-        this.statusIcon = 'el-icon-error';
-        this.$message.error('激活失败，请检查网络连接或联系供应商');
-      } finally {
-        this.isActivating = false;
-      }
-    },
 
-    async generateQRCode() {
-      // 生成二维码用于扫码激活
-      try {
-        const response = await fetch('/api/license/qr-generate', {
-          method: 'POST'
-        });
-        const result = await response.json();
-        if (result.success) {
-          this.showQRCode = true;
-          this.qrCodeSvg = `<img src="${result.qr_code}" alt="激活二维码" style="width: 200px; height: 200px;">`;
-          this.qrExpireTime = result.expire_time;
-        }
-      } catch (e) {
-        console.log('二维码生成功能暂不可用');
-      }
+        this.isActivating = false;
+      }, 800);
     }
   }
 };
@@ -323,35 +267,6 @@ export default {
   margin-top: 30px;
   text-align: center;
   color: #c0c4cc;
-  font-size: 12px;
-}
-
-.qr-activate-card {
-  margin-top: 30px;
-  padding-top: 30px;
-  border-top: 1px solid #ebeef5;
-  text-align: center;
-}
-
-.qr-header h2 {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.qr-header p {
-  color: #909399;
-  font-size: 14px;
-  margin-bottom: 20px;
-}
-
-.qr-code {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.qr-expire {
-  color: #e6a23c;
   font-size: 12px;
 }
 
