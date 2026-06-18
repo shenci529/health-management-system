@@ -217,29 +217,37 @@ export default {
         const params = [];
         if (this.filterStatus) params.push(`status=${this.filterStatus}`);
         if (params.length) url += '?' + params.join('&');
-        const res = await this.$http.get(this.$api(url));
-        if (res.data.success) {
-          this.licenses = res.data.data;
+        const res = await fetch(this.$api(url));
+        const data = await res.json();
+        if (data.success) {
+          this.licenses = data.data;
         }
       } catch (err) {
+        console.error('加载授权码列表失败:', err);
         this.$message.error('加载授权码列表失败');
       }
     },
     async loadStats() {
       try {
-        const res = await this.$http.get(this.$api('/api/license/stats'));
-        if (res.data.success) {
-          this.stats = res.data.data;
+        const res = await fetch(this.$api('/api/license/stats'));
+        const data = await res.json();
+        if (data.success) {
+          this.stats = data.data;
         }
       } catch (err) {
-        console.error('加载统计失败');
+        console.error('加载统计失败:', err);
       }
     },
     async generateLicense() {
       this.generating = true;
       try {
-        const res = await this.$http.post(this.$api('/api/license/generate'), this.formData);
-        if (res.data.success) {
+        const res = await fetch(this.$api('/api/license/generate'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.formData)
+        });
+        const data = await res.json();
+        if (data.success) {
           this.$message.success('授权码生成成功');
           this.showGenerateDialog = false;
           this.formData = {
@@ -254,9 +262,10 @@ export default {
           this.loadLicenses();
           this.loadStats();
         } else {
-          this.$message.error(res.data.message);
+          this.$message.error(data.message);
         }
       } catch (err) {
+        console.error('生成授权码失败:', err);
         this.$message.error('生成授权码失败');
       } finally {
         this.generating = false;
@@ -278,16 +287,22 @@ export default {
       if (!this.currentLicense) return;
       this.activating = true;
       try {
-        const res = await this.$http.post(this.$api(`/api/license/${this.currentLicense.id}/activate`), this.activateForm);
-        if (res.data.success) {
+        const res = await fetch(this.$api(`/api/license/${this.currentLicense.id}/activate`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.activateForm)
+        });
+        const data = await res.json();
+        if (data.success) {
           this.$message.success('授权激活成功');
           this.showActivateDialog = false;
           this.loadLicenses();
           this.loadStats();
         } else {
-          this.$message.error(res.data.message);
+          this.$message.error(data.message);
         }
       } catch (err) {
+        console.error('激活失败:', err);
         this.$message.error('激活失败');
       } finally {
         this.activating = false;
@@ -296,13 +311,17 @@ export default {
     async revokeLicense(license) {
       this.$confirm('确定要撤销此授权码吗？撤销后将无法使用。', '提示', { type: 'warning' }).then(async () => {
         try {
-          const res = await this.$http.post(this.$api(`/api/license/${license.id}/revoke`));
-          if (res.data.success) {
+          const res = await fetch(this.$api(`/api/license/${license.id}/revoke`), {
+            method: 'POST'
+          });
+          const data = await res.json();
+          if (data.success) {
             this.$message.success('授权已撤销');
             this.loadLicenses();
             this.loadStats();
           }
         } catch (err) {
+          console.error('撤销失败:', err);
           this.$message.error('撤销失败');
         }
       }).catch(() => {});
@@ -310,13 +329,17 @@ export default {
     async deleteLicense(license) {
       this.$confirm('确定要删除此授权码吗？删除后不可恢复。', '提示', { type: 'warning' }).then(async () => {
         try {
-          const res = await this.$http.delete(this.$api(`/api/license/${license.id}`));
-          if (res.data.success) {
+          const res = await fetch(this.$api(`/api/license/${license.id}`), {
+            method: 'DELETE'
+          });
+          const data = await res.json();
+          if (data.success) {
             this.$message.success('授权已删除');
             this.loadLicenses();
             this.loadStats();
           }
         } catch (err) {
+          console.error('删除失败:', err);
           this.$message.error('删除失败');
         }
       }).catch(() => {});
