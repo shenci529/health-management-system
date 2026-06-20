@@ -32,8 +32,23 @@ Object.defineProperty(Vue.prototype, '$echarts', {
   }
 });
 
-// 后端 API 基础地址
-const PUBLIC_API_BASE = process.env.VITE_API_BASE || '';
+// 后端 API 基础地址（智能检测运行环境）
+// 优先级：
+//   1. 构建时注入的 VITE_API_BASE 环境变量（GitHub Pages 部署时使用）
+//   2. 本地开发：localhost:3002
+//   3. 生产环境（与前端同域）：相对路径（空字符串）
+let PUBLIC_API_BASE = '';
+const host = (typeof window !== 'undefined' && window.location) ? window.location.hostname : '';
+const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '';
+const isGithubPages = (typeof window !== 'undefined' && window.location) && window.location.hostname.includes('github.io');
+
+if (process.env.VITE_API_BASE) {
+  PUBLIC_API_BASE = process.env.VITE_API_BASE;
+} else if (isLocalhost) {
+  PUBLIC_API_BASE = 'http://localhost:3002';
+}
+// 其他情况（同域部署如 Render/Vercel）使用相对路径 ''
+
 Vue.prototype.$API_BASE = PUBLIC_API_BASE;
 Vue.prototype.$api = function (path) {
   if (typeof path === 'string' && path.startsWith('/')) {
@@ -41,6 +56,11 @@ Vue.prototype.$api = function (path) {
   }
   return path;
 };
+
+// 在控制台打印当前使用的 API 地址（方便调试）
+if (typeof console !== 'undefined') {
+  console.log('🌐 健康管理系统 - API 基础地址:', PUBLIC_API_BASE || '(相对路径 - 同域部署)');
+}
 
 Vue.config.productionTip = false;
 

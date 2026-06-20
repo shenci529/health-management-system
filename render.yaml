@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: health-management-backend
+    name: health-management-system
     env: node
     plan: starter
-    buildCommand: cd server && npm install
+    buildCommand: npm install && npm run build && cd server && npm install
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV

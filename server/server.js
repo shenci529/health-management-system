@@ -99,11 +99,16 @@ function queryExec(sql) {
   });
 
   app.get('/', (req, res) => {
-    res.json({
-      name: '幼儿中小学生健康管理系统API',
-      version: '1.0.0',
-      description: '提供学生、家长、教师端的健康数据管理API服务'
-    });
+    const distPath = path.join(__dirname, '../dist');
+    if (fs.existsSync(distPath)) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    } else {
+      res.json({
+        name: '幼儿中小学生健康管理系统API',
+        version: '1.0.0',
+        description: '提供学生、家长、教师端的健康数据管理API服务'
+      });
+    }
   });
 
   app.get('/api/health', (req, res) => {
@@ -536,6 +541,22 @@ function queryExec(sql) {
     }
   });
 
+  // ==================== 前端静态文件服务（dist 目录）====================
+  const distPath = path.join(__dirname, '../dist');
+  if (fs.existsSync(distPath)) {
+    console.log('📦 提供前端静态文件: ' + distPath);
+    app.use(express.static(distPath));
+    // SPA fallback: 非 API 请求返回 index.html
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.log('⚠️  未找到 dist 目录，仅提供 API 服务');
+  }
+
   app.use((req, res) => {
     res.status(404).json({ success: false, message: '请求的资源不存在', path: req.url });
   });
@@ -547,10 +568,11 @@ function queryExec(sql) {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('========================================');
-    console.log('  幼儿中小学生健康管理系统 - 后端API服务');
+    console.log('  幼儿中小学生健康管理系统');
     console.log('========================================');
-    console.log(`  服务已启动: http://localhost:${PORT}`);
+    console.log(`  前端页面: http://localhost:${PORT}`);
     console.log(`  健康检查: http://localhost:${PORT}/api/health`);
+    console.log(`  授权列表: http://localhost:${PORT}/api/license`);
     console.log('  默认账号: admin / admin123');
     console.log('========================================');
   });
