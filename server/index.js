@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -9,7 +10,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ==================== 数据库初始化 ====================
 const { Database } = require('./database/db');
+(async () => {
+  try {
+    await Database.init();
+    console.log('✅ 数据库初始化成功');
+  } catch (err) {
+    console.error('❌ 数据库初始化失败:', err);
+  }
+})();
+
+// ==================== API 路由 ====================
 const studentRoutes = require('./routes/student');
 const parentRoutes = require('./routes/parent');
 const teacherRoutes = require('./routes/teacher');
@@ -37,34 +49,42 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Health Management System API',
-    version: '1.0.0',
-    status: 'running'
+// ==================== 前端静态文件服务 ====================
+// 当 dist 目录存在时，提供前端页面；不存在时根路径返回 API 信息
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+  console.log('📦 提供前端静态文件: ' + distPath);
+  app.use(express.static(distPath));
+  // SPA fallback：非 API 请求返回 index.html
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
   });
-});
-
-(async () => {
-  try {
-    await Database.init();
-    console.log('✅ 数据库初始化成功');
-  } catch (err) {
-    console.error('❌ 数据库初始化失败:', err);
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    const serverless = require('serverless-http');
-    module.exports.handler = serverless(app);
-  } else {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log('========================================');
-      console.log('  幼儿中小学生健康管理系统 - 后端API服务');
-      console.log('========================================');
-      console.log(`  服务已启动: http://localhost:${PORT}`);
-      console.log(`  健康检查: http://localhost:${PORT}/api/health`);
-      console.log('  默认账号: admin / admin123');
-      console.log('========================================');
+} else {
+  console.log('⚠️  未找到 dist 目录，仅提供 API 服务');
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'Health Management System API',
+      version: '1.0.0',
+      status: 'running'
     });
-  }
-})();
+  });
+}
+
+// ==================== 启动服务器 ====================
+if (process.env.NODE_ENV === 'production') {
+  const serverless = require('serverless-http');
+  module.exports.handler = serverless(app);
+} else {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('========================================');
+    console.log('  幼儿中小学生健康管理系统');
+    console.log('========================================');
+    console.log(`  前端页面: http://localhost:${PORT}`);
+    console.log(`  健康检查: http://localhost:${PORT}/api/health`);
+    console.log(`  授权列表: http://localhost:${PORT}/api/license`);
+    console.log('  默认账号: admin / admin123');
+    console.log('========================================');
+  });
+}
