@@ -19,6 +19,15 @@ class Database {
     } else {
       dbInstance = new SQL.Database();
       console.log('✅ 数据库连接成功（新数据库）');
+      const schemaPath = path.join(__dirname, 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        dbInstance.exec(schemaSql);
+        console.log('✅ 数据库表结构初始化成功');
+        Database.save();
+      } else {
+        console.warn('⚠️  schema.sql 不存在，表结构未初始化');
+      }
     }
   }
 
