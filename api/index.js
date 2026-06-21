@@ -188,10 +188,19 @@ app.get('/api/classes', (req, res) => {
 // 班级动态列表
 app.get('/api/class-posts', (req, res) => {
   initDatabase().then(() => {
-    const posts = queryAll(
-      'SELECT cp.*, c.name as class_name FROM class_posts cp LEFT JOIN classes c ON cp.class_id = c.id WHERE cp.status = ? ORDER BY cp.is_pinned DESC, cp.created_at DESC LIMIT 50',
-      ['published']
-    );
+    const classId = req.query.class_id;
+    let posts;
+    if (classId) {
+      posts = queryAll(
+        'SELECT cp.*, c.name as class_name FROM class_posts cp LEFT JOIN classes c ON cp.class_id = c.id WHERE cp.status = ? AND cp.class_id = ? ORDER BY cp.is_pinned DESC, cp.created_at DESC LIMIT 50',
+        ['published', parseInt(classId)]
+      );
+    } else {
+      posts = queryAll(
+        'SELECT cp.*, c.name as class_name FROM class_posts cp LEFT JOIN classes c ON cp.class_id = c.id WHERE cp.status = ? ORDER BY cp.is_pinned DESC, cp.created_at DESC LIMIT 50',
+        ['published']
+      );
+    }
     const postIds = posts.map(p => p.id);
     let mediaList = [];
     if (postIds.length > 0) {

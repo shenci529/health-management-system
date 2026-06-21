@@ -149,7 +149,7 @@ export default {
   methods: {
     async loadClasses() {
       try {
-        const res = await fetch('/api/classes');
+        const res = await fetch(this.$api('/api/classes'));
         if (res.ok) {
           const data = await res.json();
           this.classList = data.data || data.classes || data || [];
@@ -166,7 +166,7 @@ export default {
     async loadPosts() {
       this.loading = true;
       try {
-        const res = await fetch('/api/class-posts');
+        const res = await fetch(this.$api('/api/class-posts'));
         if (res.ok) {
           const data = await res.json();
           this.postList = data.data || data.posts || data || [];
@@ -231,7 +231,7 @@ export default {
           if (user.id) payload.author_id = user.id;
           if (user.name || user.username) payload.author_name = user.name || user.username;
 
-          const res = await fetch('/api/class-posts', {
+          const res = await fetch(this.$api('/api/class-posts'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -259,7 +259,7 @@ export default {
     },
     async viewPost(row) {
       try {
-        const res = await fetch('/api/class-posts/' + row.id);
+        const res = await fetch(this.$api('/api/class-posts/' + row.id));
         if (res.ok) {
           const data = await res.json();
           this.currentPost = data.data || data.post || data;
@@ -271,7 +271,7 @@ export default {
     },
     async togglePin(row) {
       try {
-        const res = await fetch('/api/class-posts/' + row.id + '/pin', {
+        const res = await fetch(this.$api('/api/class-posts/' + row.id + '/pin'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ is_pinned: row.is_pinned ? 0 : 1 })
@@ -287,7 +287,7 @@ export default {
     async deletePost(row) {
       this.$confirm('确定删除动态 "' + row.title + '" 吗？', '提示', { type: 'warning' }).then(async () => {
         try {
-          const res = await fetch('/api/class-posts/' + row.id, { method: 'DELETE' });
+          const res = await fetch(this.$api('/api/class-posts/' + row.id), { method: 'DELETE' });
           if (res.ok) {
             this.$message.success('删除成功');
             this.loadPosts();
@@ -300,8 +300,8 @@ export default {
     buildMediaUrl(path) {
       if (!path) return '';
       if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
-      if (path.startsWith('/uploads')) return path;
-      return '/uploads/' + path.replace(/^[\/\\]/, '');
+      if (path.startsWith('/uploads')) return this.$api(path);
+      return this.$api('/uploads/' + path.replace(/^[\/\\]/, ''));
     }
   }
 };

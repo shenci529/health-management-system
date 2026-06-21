@@ -113,7 +113,7 @@ export default {
     async loadChildren() {
       try {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const res = await fetch('/api/parents/' + (user.id || user.parent_id || '') + '/children');
+        const res = await fetch(this.$api('/api/parents/' + (user.id || user.parent_id || '') + '/children'));
         if (res.ok) {
           const data = await res.json();
           this.childList = data.data || data.children || data || [];
@@ -131,7 +131,7 @@ export default {
     async loadPosts() {
       this.loading = true;
       try {
-        let url = '/api/class-posts';
+        let url = this.$api('/api/class-posts');
         if (this.filter.classId) {
           url += '?class_id=' + this.filter.classId;
         }
@@ -156,7 +156,7 @@ export default {
       this.detailVisible = true;
       // 增加阅读计数
       try {
-        const res = await fetch('/api/class-posts/' + post.id + '/view', { method: 'POST' });
+        const res = await fetch(this.$api('/api/class-posts/' + post.id + '/view'), { method: 'POST' });
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data.view_count) post.view_count = data.view_count;
@@ -172,8 +172,8 @@ export default {
     buildMediaUrl(path) {
       if (!path) return '';
       if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
-      if (path.startsWith('/uploads')) return path;
-      return '/uploads/' + path.replace(/^[\/\\]/, '');
+      if (path.startsWith('/uploads')) return this.$api(path);
+      return this.$api('/uploads/' + path.replace(/^[\/\\]/, ''));
     }
   }
 };
