@@ -45,8 +45,7 @@ const classPostsRoutes = require('./routes/classPosts');
 app.use('/api/class-posts', classPostsRoutes);
 
 // 提供上传的图片/视频文件（静态资源）
-const uploadsPath = require('path').join(__dirname, 'uploads');
-const fs = require('fs');
+const uploadsPath = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 app.use('/uploads', express.static(uploadsPath, { maxAge: '30d' }));
 
