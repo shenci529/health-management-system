@@ -177,6 +177,94 @@ app.post('/api/users/login', async (req, res) => {
   }
 });
 
+// 班级列表
+app.get('/api/classes', (req, res) => {
+  initDatabase().then(() => {
+    const classes = queryAll('SELECT id, name, capacity, grade_id FROM classes ORDER BY grade_id, id');
+    res.json({ success: true, data: classes });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 班级动态列表
+app.get('/api/class-posts', (req, res) => {
+  initDatabase().then(() => {
+    const posts = queryAll(
+      'SELECT cp.*, c.name as class_name FROM class_posts cp LEFT JOIN classes c ON cp.class_id = c.id WHERE cp.status = ? ORDER BY cp.is_pinned DESC, cp.created_at DESC LIMIT 50',
+      ['published']
+    );
+    const postIds = posts.map(p => p.id);
+    let mediaList = [];
+    if (postIds.length > 0) {
+      const placeholders = postIds.map(() => '?').join(',');
+      mediaList = queryAll(`SELECT * FROM class_post_media WHERE post_id IN (${placeholders}) ORDER BY sort_order, id`, postIds);
+    }
+    const postsWithMedia = posts.map(post => ({
+      ...post,
+      medias: mediaList.filter(m => m.post_id === post.id)
+    }));
+    res.json({ success: true, data: postsWithMedia, total: postsWithMedia.length });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 获取单条动态详情
+app.get('/api/class-posts/:id', (req, res) => {
+  initDatabase().then(() => {
+    const post = queryOne(
+      'SELECT cp.*, c.name as class_name FROM class_posts cp LEFT JOIN classes c ON cp.class_id = c.id WHERE cp.id = ?',
+      [parseInt(req.params.id)]
+    );
+    if (!post) return res.status(404).json({ success: false, message: '动态不存在' });
+    const medias = queryAll('SELECT * FROM class_post_media WHERE post_id = ? ORDER BY sort_order, id', [parseInt(req.params.id)]);
+    res.json({ success: true, data: { ...post, medias } });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 发布动态（支持 base64 文件上传，兼容无服务器环境）
+app.post('/api/class-posts', (req, res) => {
+  initDatabase().then(() => {
+    const { title = '', content = '', class_id = null, author_id = null, author_name = '', is_pinned = 0, files = [] } = req.body;
+    const result = queryRun(
+      'INSERT INTO class_posts (title, content, class_id, author_id, author_name, is_pinned, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [title, content, class_id ? parseInt(class_id) : null, author_id ? parseInt(author_id) : null, author_name || '班主任', is_pinned ? 1 : 0, 'published']
+    );
+    const postId = result.lastID;
+    if (files && Array.isArray(files) && files.length > 0) {
+      files.forEach((f, idx) => {
+        const mediaType = f.type && f.type.startsWith('video') ? 'video' : 'image';
+        const filePath = f.data || f.url || f.file_path || '';
+        queryRun('INSERT INTO class_post_media (post_id, file_name, file_path, media_type, sort_order) VALUES (?, ?, ?, ?, ?)', [postId, f.name || 'file' + idx, filePath, mediaType, idx]);
+      });
+    }
+    res.json({ success: true, id: postId, message: '发布成功' });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 置顶切换
+app.post('/api/class-posts/:id/pin', (req, res) => {
+  initDatabase().then(() => {
+    const isPinned = req.body.is_pinned ? 1 : 0;
+    queryRun('UPDATE class_posts SET is_pinned = ? WHERE id = ?', [isPinned, parseInt(req.params.id)]);
+    res.json({ success: true });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 删除动态
+app.delete('/api/class-posts/:id', (req, res) => {
+  initDatabase().then(() => {
+    queryRun('DELETE FROM class_post_media WHERE post_id = ?', [parseInt(req.params.id)]);
+    queryRun('DELETE FROM class_posts WHERE id = ?', [parseInt(req.params.id)]);
+    res.json({ success: true, message: '删除成功' });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
+// 阅读计数
+app.post('/api/class-posts/:id/view', (req, res) => {
+  initDatabase().then(() => {
+    queryRun('UPDATE class_posts SET view_count = COALESCE(view_count, 0) + 1 WHERE id = ?', [parseInt(req.params.id)]);
+    res.json({ success: true });
+  }).catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
 // 默认 404
 app.use((req, res) => {
   res.status(404).json({ success: false, message: '接口不存在: ' + req.url });

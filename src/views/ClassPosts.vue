@@ -209,23 +209,32 @@ export default {
         }
         this.submitting = true;
         try {
-          const formData = new FormData();
-          formData.append('title', this.postForm.title);
-          formData.append('content', this.postForm.content);
-          formData.append('is_pinned', this.postForm.isPinned ? '1' : '0');
-          if (this.postForm.scope === 'class' && this.postForm.classId) {
-            formData.append('class_id', String(this.postForm.classId));
-          }
+          // 将所有文件转为 base64（兼容 Vercel 等无服务器环境）
+          const filesBase64 = [];
           for (const f of this.uploadedFiles) {
-            formData.append('files', f.file);
+            filesBase64.push({
+              name: f.name,
+              type: f.type,
+              data: f.preview
+            });
           }
           const user = JSON.parse(localStorage.getItem('user') || '{}');
-          if (user.id) formData.append('author_id', String(user.id));
-          if (user.name || user.username) formData.append('author_name', user.name || user.username);
+          const payload = {
+            title: this.postForm.title,
+            content: this.postForm.content,
+            is_pinned: this.postForm.isPinned ? 1 : 0,
+            files: filesBase64
+          };
+          if (this.postForm.scope === 'class' && this.postForm.classId) {
+            payload.class_id = this.postForm.classId;
+          }
+          if (user.id) payload.author_id = user.id;
+          if (user.name || user.username) payload.author_name = user.name || user.username;
 
           const res = await fetch('/api/class-posts', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
           });
           if (res.ok) {
             this.$message.success('动态发布成功！家长将同步看到这条动态');
