@@ -44,6 +44,17 @@ app.use('/api/license', licenseRoutes);
 const classPostsRoutes = require('./routes/classPosts');
 app.use('/api/class-posts', classPostsRoutes);
 
+// 班级列表接口（供前端下拉框使用）
+app.get('/api/classes', (req, res) => {
+  try {
+    const classes = Database.all('SELECT id, name, capacity, grade_id FROM classes ORDER BY grade_id, id');
+    res.json({ success: true, data: classes });
+  } catch (err) {
+    console.error('获取班级列表失败:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 提供上传的图片/视频文件（静态资源）
 const uploadsPath = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
