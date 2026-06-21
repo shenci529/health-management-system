@@ -40,6 +40,17 @@ app.use('/api/users', userRoutes);
 app.use('/api/abnormal', abnormalRoutes);
 app.use('/api/license', licenseRoutes);
 
+// 班级动态 API（图片/视频上传）
+const classPostsRoutes = require('./routes/classPosts');
+app.use('/api/class-posts', classPostsRoutes);
+
+// 提供上传的图片/视频文件（静态资源）
+const uploadsPath = require('path').join(__dirname, 'uploads');
+const fs = require('fs');
+if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
+app.use('/uploads', express.static(uploadsPath, { maxAge: '30d' }));
+
+// 健康检查
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',

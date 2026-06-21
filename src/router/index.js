@@ -104,6 +104,7 @@ const routes = [
       { path: 'activity-signup', name: 'ActivitySignup', component: () => import('@/views/ActivitySignup.vue'), meta: { roles: getAllowedRoles('activity-signup') } },
 
       // ========== 家长端 ==========
+      { path: 'child-updates', name: 'ChildUpdates', component: () => import('@/views/ChildUpdates.vue'), meta: { roles: getAllowedRoles('child-updates') } },
       { path: 'child-health', name: 'ChildHealth', component: () => import('@/views/ChildHealth.vue'), meta: { roles: getAllowedRoles('child-health') } },
       { path: 'medical-history', name: 'MedicalHistory', component: () => import('@/views/MedicalHistory.vue'), meta: { roles: getAllowedRoles('medical-history') } },
       { path: 'leave-request', name: 'LeaveRequest', component: () => import('@/views/LeaveRequest.vue'), meta: { roles: getAllowedRoles('leave-request') } },
@@ -113,6 +114,7 @@ const routes = [
       { path: 'parent-communication', name: 'ParentCommunication', component: () => import('@/views/ParentCommunication.vue'), meta: { roles: getAllowedRoles('parent-communication') } },
 
       // ========== 教师端 ==========
+      { path: 'class-posts', name: 'ClassPosts', component: () => import('@/views/ClassPosts.vue'), meta: { roles: getAllowedRoles('class-posts') } },
       { path: 'absence-register', name: 'AbsenceRegister', component: () => import('@/views/AbsenceRegister.vue'), meta: { roles: getAllowedRoles('absence-register') } },
       { path: 'incident-report', name: 'IncidentReport', component: () => import('@/views/IncidentReport.vue'), meta: { roles: getAllowedRoles('incident-report') } },
       { path: 'task-publish', name: 'TaskPublish', component: () => import('@/views/TaskPublish.vue'), meta: { roles: getAllowedRoles('task-publish') } },

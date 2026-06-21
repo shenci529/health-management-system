@@ -357,6 +357,7 @@ export default {
         {
           name: '家长端',
           items: [
+            { path: '/child-updates', title: '孩子在校动态', icon: 'el-icon-picture-outline-round' },
             { path: '/child-health', title: '孩子健康', icon: 'el-icon-user-solid' },
             { path: '/medical-history', title: '既往病史', icon: 'el-icon-document' },
             { path: '/leave-request', title: '请假申请', icon: 'el-icon-tickets' },
@@ -369,6 +370,7 @@ export default {
         {
           name: '教师端',
           items: [
+            { path: '/class-posts', title: '班级动态', icon: 'el-icon-picture-outline' },
             { path: '/absence-register', title: '缺勤登记', icon: 'el-icon-document-checked' },
             { path: '/incident-report', title: '事件上报', icon: 'el-icon-alarm-clock' },
             { path: '/task-publish', title: '任务发布', icon: 'el-icon-s-promotion' },

@@ -371,6 +371,48 @@ CREATE TABLE IF NOT EXISTS licenses (
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+-- 班级动态表（班主任发布的照片、视频、文字动态）
+CREATE TABLE IF NOT EXISTS class_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER, -- 可为空：为空表示全校可见
+    title VARCHAR(200),
+    content TEXT,
+    author_id INTEGER NOT NULL,
+    author_name VARCHAR(100),
+    is_pinned BOOLEAN DEFAULT 0, -- 是否置顶
+    view_count INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'published', -- draft, published, archived
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id),
+    FOREIGN KEY (author_id) REFERENCES users(id)
+);
+
+-- 班级动态媒体表（图片/视频）
+CREATE TABLE IF NOT EXISTS class_post_media (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_type VARCHAR(20) NOT NULL, -- image, video
+    file_size INTEGER,
+    mime_type VARCHAR(100),
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES class_posts(id) ON DELETE CASCADE
+);
+
+-- 动态查看记录（用于家长端"已读"功能）
+CREATE TABLE IF NOT EXISTS class_post_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES class_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(post_id, user_id)
+);
+
 -- =============================================
 -- 插入初始数据
 -- =============================================

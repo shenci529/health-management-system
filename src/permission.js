@@ -97,7 +97,11 @@ export const ROLE_PERMISSIONS = {
 
   // ===== 健康作业 =====
   'health-homework':     ['admin', 'teacher', 'student'],
-  'homework-correct':    ['admin', 'teacher']
+  'homework-correct':    ['admin', 'teacher'],
+
+  // ===== 班级动态（图片/视频上传与查看）=====
+  'class-posts':         ['admin', 'teacher'],
+  'child-updates':       ['admin', 'parent']
 };
 
 // ============================================================

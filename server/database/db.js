@@ -12,14 +12,26 @@ class Database {
     
     const SQL = await initSqlJs();
     
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    
     if (fs.existsSync(dbPath)) {
       const fileBuffer = fs.readFileSync(dbPath);
       dbInstance = new SQL.Database(fileBuffer);
       console.log('✅ 数据库连接成功（从文件加载）');
+      // 总是重新执行 schema.sql，确保新表也被创建（CREATE TABLE IF NOT EXISTS）
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        try {
+          dbInstance.exec(schemaSql);
+          console.log('✅ 数据库表结构检查完成');
+          Database.save();
+        } catch (e) {
+          console.warn('⚠️  schema 执行警告（可能表已存在）:', e.message);
+        }
+      }
     } else {
       dbInstance = new SQL.Database();
       console.log('✅ 数据库连接成功（新数据库）');
-      const schemaPath = path.join(__dirname, 'schema.sql');
       if (fs.existsSync(schemaPath)) {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         dbInstance.exec(schemaSql);
